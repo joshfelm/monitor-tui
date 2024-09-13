@@ -24,11 +24,20 @@ struct Monitor {
     position_string: String,
     is_primary: bool,
     is_selected: bool,
+    left: i32,
+    right: i32,
+    up: i32,
+    down: i32
 }
 
 enum FocusedWindow {
     MonitorList,
     MonitorInfo,
+}
+
+enum State {
+    Main,
+    MonitorEdit,
 }
 
 fn main() -> Result<(), io::Error> {
@@ -65,6 +74,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
     let mut selected_index = 0;
     let mut current_monitor = 0;
     let mut focused_window = FocusedWindow::MonitorList;
+    let mut current_state = State::Main;
     let _primary_index = 0;
 
     loop {
@@ -90,7 +100,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
             let info = if let Some(monitor) = monitors.get(selected_index) {
                 format!(
-                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}",
+                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}\nup: {}\ndown: {}\nleft: {}\n right: {}",
                     monitor.name,
                     monitor.resolution.0,
                     monitor.resolution.1,
@@ -98,7 +108,11 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                     monitor.position.1,
                     monitor.resolution_string,
                     monitor.position_string,
-                    if monitor.is_primary { "Yes" } else { "No" }
+                    if monitor.is_primary { "Yes" } else { "No" },
+                    if monitor.up > -1 { monitors[monitor.up as usize].name.to_string() } else { "None".to_string() },
+                    if monitor.down > -1 { monitors[monitor.down as usize].name.to_string() } else { "None".to_string() },
+                    if monitor.left > -1 { monitors[monitor.left as usize].name.to_string() } else { "None".to_string() },
+                    if monitor.right > -1 { monitors[monitor.right as usize].name.to_string() } else { "None".to_string() },
                 )
             } else {
                 "No monitor selected".to_string()
@@ -124,33 +138,46 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
             match key.code {
                 KeyCode::Char('q') => return Ok(()),
                 KeyCode::Char('h') | KeyCode::Char('l') => {
-                    if matches!(focused_window, FocusedWindow::MonitorList) {
-                        if key.code == KeyCode::Char('l') {
-                            selected_index = (selected_index + monitors.len() - 1) % monitors.len();
-                        } else {
-                            selected_index = (selected_index + 1) % monitors.len();
+                    if matches!(current_state, State::MonitorEdit) {
+                        if matches!(focused_window, FocusedWindow::MonitorList) {
+                            if key.code == KeyCode::Char('l') {
+                                selected_index = (selected_index + monitors.len() - 1) % monitors.len();
+                            } else {
+                                selected_index = (selected_index + 1) % monitors.len();
+                            }
                         }
                     }
                 }
                 KeyCode::Char('j') | KeyCode::Char('k') => {
-                    focused_window = match focused_window {
-                        FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
-                        FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
-                    };
+                    if matches!(current_state, State::Main) {
+                        focused_window = match focused_window {
+                            FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
+                            FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
+                        };
+                    }
                 }
                 KeyCode::Enter => {
-                    if matches!(focused_window, FocusedWindow::MonitorList) {
-                        if monitors[current_monitor].is_selected && current_monitor != selected_index {
-                            monitors[current_monitor].is_selected = false;
-                            let temp_position = monitors[selected_index].position;
-                            monitors[selected_index].position = monitors[current_monitor].position;
-                            monitors[current_monitor].position = temp_position;
-                            // update order
-                            monitors.swap(selected_index, current_monitor);
-                        } else {
-                            current_monitor = selected_index;
-                            monitors[selected_index].is_selected = !monitors[selected_index].is_selected;
+                    if matches!(current_state, State::Main) {
+                        current_state = State::MonitorEdit;
+                    } else if matches!(current_state, State::MonitorEdit) {
+                        if matches!(focused_window, FocusedWindow::MonitorList) {
+                            if monitors[current_monitor].is_selected && current_monitor != selected_index {
+                                monitors[current_monitor].is_selected = false;
+                                let temp_position = monitors[selected_index].position;
+                                monitors[selected_index].position = monitors[current_monitor].position;
+                                monitors[current_monitor].position = temp_position;
+                                // update order
+                                monitors.swap(selected_index, current_monitor);
+                            } else {
+                                current_monitor = selected_index;
+                                monitors[selected_index].is_selected = !monitors[selected_index].is_selected;
+                            }
                         }
+                    }
+                }
+                KeyCode::Esc => {
+                    if matches!(current_state, State::MonitorEdit) {
+                        current_state = State::Main;
                     }
                 }
                 _ => {}
@@ -165,7 +192,7 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
         .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let monitors: Vec<Monitor> = stdout
+    let mut monitors: Vec<Monitor> = stdout
         .lines()
         .filter(|line| line.contains(" connected"))
         .map(|line| {
@@ -191,13 +218,39 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 resolution: (resolution[0], resolution[1]),
                 position: (position[0], position2[0]),
                 resolution_string: resolution_part.to_string(),
-                position_string: parts[2].to_string(),
+                position_string: if !is_primary { parts[2].to_string() } else { parts[3].to_string() },
                 is_primary,
                 is_selected: false,
+                left: -1,
+                right: -1,
+                up: -1,
+                down: -1
             }
         })
         .collect();
+    //TODO: look at all the monitors: if x position of n is m+length or y is m+height (within 50%),
+    //set as right or above, and vice versa so all monitors are pointing to one another
+    for i in 0..monitors.len() {
+        for j in 0..monitors.len() {
+            if i == j {
+                continue;
+            }
 
+            if monitors[j].position.0 as i32 == (monitors[i].position.0 + monitors[j].resolution.0 as i32) as i32 {
+                monitors[i].right = j as i32;
+                monitors[j].left = i as i32;
+            } else if monitors[j].position.1 as i32 == (monitors[i].position.1 + monitors[j].resolution.1 as i32) as i32 {
+                monitors[i].down = j as i32;
+                monitors[j].up = i as i32;
+            } else if monitors[j].position.0 as i32 == (monitors[i].position.0 - monitors[j].resolution.0 as i32) as i32 {
+                monitors[i].left = j as i32;
+                monitors[j].right = i as i32;
+            } else if monitors[j].position.1 as i32 == (monitors[i].position.1 - monitors[j].resolution.1 as i32) as i32 {
+                monitors[i].up = j as i32;
+                monitors[j].down = i as i32;
+            }
+        }
+    }
     Ok(monitors)
 }
 
