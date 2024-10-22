@@ -18,16 +18,16 @@ use crossterm::{
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Monitor {
     name: String,
-    resolution: (u32, u32),
+    resolution: (i32, i32),
     position: (i32, i32),
     resolution_string: String,
     position_string: String,
     is_primary: bool,
     is_selected: bool,
-    left: i32,
-    right: i32,
-    up: i32,
-    down: i32
+    left: Option<usize>,
+    right: Option<usize>,
+    up: Option<usize>,
+    down: Option<usize>
 }
 
 enum FocusedWindow {
@@ -38,6 +38,7 @@ enum FocusedWindow {
 enum State {
     Main,
     MonitorEdit,
+    InfoEdit,
 }
 
 fn main() -> Result<(), io::Error> {
@@ -113,10 +114,10 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                     monitor.resolution_string,
                     monitor.position_string,
                     if monitor.is_primary { "Yes" } else { "No" },
-                    if monitor.up > -1 { monitors[monitor.up as usize].name.to_string() } else { "None".to_string() },
-                    if monitor.down > -1 { monitors[monitor.down as usize].name.to_string() } else { "None".to_string() },
-                    if monitor.left > -1 { monitors[monitor.left as usize].name.to_string() } else { "None".to_string() },
-                    if monitor.right > -1 { monitors[monitor.right as usize].name.to_string() } else { "None".to_string() },
+                    if monitor.up != None { monitors[monitor.up.unwrap()].name.to_string() } else { "None".to_string() },
+                    if monitor.down != None { monitors[monitor.down.unwrap()].name.to_string() } else { "None".to_string() },
+                    if monitor.left != None { monitors[monitor.left.unwrap()].name.to_string() } else { "None".to_string() },
+                    if monitor.right != None { monitors[monitor.right.unwrap()].name.to_string() } else { "None".to_string() },
                 )
             } else {
                 "No monitor selected".to_string()
@@ -125,7 +126,10 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
             let info_block = Block::default()
                 .title("Monitor Info")
                 .borders(Borders::ALL)
-                .style(Style::default().fg(if matches!(focused_window, FocusedWindow::MonitorInfo) {
+                .style(Style::default().fg(
+                if matches!(current_state, State::InfoEdit) {
+                    Color::LightMagenta
+                } else if matches!(focused_window, FocusedWindow::MonitorInfo) {
                     Color::Yellow
                 } else {
                     Color::White
@@ -133,6 +137,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
             let info_paragraph = Paragraph::new(info)
                 .block(info_block)
+                .style(Style::default().fg(Color::White))
                 .wrap(tui::widgets::Wrap { trim: true });
 
             f.render_widget(info_paragraph, chunks[1]);
@@ -168,53 +173,39 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                 // horizontal movement
                 KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
                     if matches!(current_state, State::MonitorEdit) {
-                        if matches!(focused_window, FocusedWindow::MonitorList) {
-                            if !selected {
-                                if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
-                                    if monitors[selected_index].right > -1 {
-                                        selected_index = monitors[selected_index].right as usize;
-                                    }
-                                } else {
-                                    if monitors[selected_index].left > -1 {
-                                        selected_index = monitors[selected_index].left as usize;
-                                    }
-                                }
-                            } else {
-                                let mut direction = 0;
-                                if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
-                                    if monitors[selected_index].right > -1 {
-                                        selected_index = monitors[selected_index].right as usize;
-                                        direction = 1;
-                                    }
-                                } else {
-                                    if monitors[selected_index].left > -1 {
-                                        selected_index = monitors[selected_index].left as usize;
-                                        direction = 2;
-                                    }
-                                }
-                                if direction != 0 && selected  {
-                                    let temp_monitor = monitors[selected_index].clone();
-                                    if direction == 1 {
-                                        monitors[selected_index].position = monitors[current_monitor].position;
-                                        monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
-                                    } else if direction == 2 {
-                                        monitors[selected_index].position.0 += monitors[current_monitor].resolution.0 as i32;
-                                        monitors[current_monitor].position = temp_monitor.position;
-                                    }
-                                    monitors[selected_index].left = monitors[current_monitor].left;
-                                    monitors[selected_index].right = monitors[current_monitor].right;
-                                    monitors[selected_index].up = monitors[current_monitor].up;
-                                    monitors[selected_index].down = monitors[current_monitor].down;
-                                    monitors[current_monitor].left = temp_monitor.left;
-                                    monitors[current_monitor].right = temp_monitor.right;
-                                    monitors[current_monitor].up = temp_monitor.up;
-                                    monitors[current_monitor].down = temp_monitor.down;
-
-                                    // update order
-                                    monitors.swap(selected_index, current_monitor);
-                                    current_monitor = selected_index;
-                                }
+                        let mut direction = 0;
+                        if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
+                            if monitors[selected_index].right.is_some() {
+                                selected_index = monitors[selected_index].right.unwrap();
+                                direction = 1;
                             }
+                        } else {
+                            if monitors[selected_index].left.is_some() {
+                                selected_index = monitors[selected_index].left.unwrap();
+                                direction = 2;
+                            }
+                        }
+                        if (direction == 1 || direction == 2) && selected  {
+                            let temp_monitor = monitors[selected_index].clone();
+                            if direction == 1 {
+                                monitors[selected_index].position = monitors[current_monitor].position;
+                                monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
+                            } else if direction == 2 {
+                                monitors[selected_index].position.0 += monitors[current_monitor].resolution.0 as i32;
+                                monitors[current_monitor].position = temp_monitor.position;
+                            }
+                            monitors[selected_index].left = monitors[current_monitor].left;
+                            monitors[selected_index].right = monitors[current_monitor].right;
+                            monitors[selected_index].up = monitors[current_monitor].up;
+                            monitors[selected_index].down = monitors[current_monitor].down;
+                            monitors[current_monitor].left = temp_monitor.left;
+                            monitors[current_monitor].right = temp_monitor.right;
+                            monitors[current_monitor].up = temp_monitor.up;
+                            monitors[current_monitor].down = temp_monitor.down;
+
+                            // update order
+                            monitors.swap(selected_index, current_monitor);
+                            current_monitor = selected_index;
                         }
                     }
                 }
@@ -230,35 +221,35 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                 // selection
                 KeyCode::Enter => {
                     if matches!(current_state, State::Main) {
-                        current_state = State::MonitorEdit;
-                    } else if matches!(current_state, State::MonitorEdit) {
                         if matches!(focused_window, FocusedWindow::MonitorList) {
-                            if monitors[current_monitor].is_selected {
-                                monitors[current_monitor].is_selected = false;
-                                selected = false;
-                            } else {
-                                current_monitor = selected_index;
-                                monitors[selected_index].is_selected = !monitors[selected_index].is_selected;
-                                selected = true;
-                            }
+                            current_state = State::MonitorEdit;
+                        } else {
+                            current_state = State::InfoEdit;
+                        }
+                    } else if matches!(current_state, State::MonitorEdit) {
+                        if monitors[current_monitor].is_selected {
+                            monitors[current_monitor].is_selected = false;
+                            selected = false;
+                        } else {
+                            current_monitor = selected_index;
+                            monitors[selected_index].is_selected = !monitors[selected_index].is_selected;
+                            selected = true;
                         }
                     }
                 }
                 // set primary
                 KeyCode::Char('p') => {
                     if matches!(current_state, State::MonitorEdit) {
-                        if matches!(focused_window, FocusedWindow::MonitorList) {
-                            let mut iterator = monitors.iter_mut();
-                            while let Some(element) = iterator.next() {
-                                element.is_primary = false;
-                            }
-                            monitors[selected_index].is_primary = true;
+                        let mut iterator = monitors.iter_mut();
+                        while let Some(element) = iterator.next() {
+                            element.is_primary = false;
                         }
+                        monitors[selected_index].is_primary = true;
                     }
                 }
                 // Deselect
                 KeyCode::Esc => {
-                    if matches!(current_state, State::MonitorEdit) {
+                    if matches!(current_state, State::MonitorEdit) || matches!(current_state, State::InfoEdit) {
                         current_state = State::Main;
                     }
                 }
@@ -287,7 +278,7 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
             let resolution_part = res_pos_part[0];
             let position_part = res_pos_part[1];
 
-            let resolution: Vec<u32> = resolution_part.split('x')
+            let resolution: Vec<i32> = resolution_part.split('x')
                 .map(|s| s.parse().unwrap_or(0))
                 .collect();
             let position: Vec<i32> = position_part.split('+')
@@ -305,10 +296,10 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 position_string: if !is_primary { parts[2].to_string() } else { parts[3].to_string() },
                 is_primary,
                 is_selected: false,
-                left: -1,
-                right: -1,
-                up: -1,
-                down: -1
+                left: None,
+                right: None,
+                up: None,
+                down: None
             }
         })
         .collect();
@@ -320,18 +311,18 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 continue;
             }
 
-            if monitors[j].position.0 as i32 == (monitors[i].position.0 + monitors[j].resolution.0 as i32) as i32 {
-                monitors[i].right = j as i32;
-                monitors[j].left = i as i32;
-            } else if monitors[j].position.1 as i32 == (monitors[i].position.1 + monitors[j].resolution.1 as i32) as i32 {
-                monitors[i].down = j as i32;
-                monitors[j].up = i as i32;
-            } else if monitors[j].position.0 as i32 == (monitors[i].position.0 - monitors[j].resolution.0 as i32) as i32 {
-                monitors[i].left = j as i32;
-                monitors[j].right = i as i32;
-            } else if monitors[j].position.1 as i32 == (monitors[i].position.1 - monitors[j].resolution.1 as i32) as i32 {
-                monitors[i].up = j as i32;
-                monitors[j].down = i as i32;
+            if monitors[j].position.0 == (monitors[i].position.0 + monitors[j].resolution.0 )  {
+                monitors[i].right = Some(j);
+                monitors[j].left = Some(i);
+            } else if monitors[j].position.1  == (monitors[i].position.1 + monitors[j].resolution.1 )  {
+                monitors[i].down = Some(j);
+                monitors[j].up = Some(i);
+            } else if monitors[j].position.0  == (monitors[i].position.0 - monitors[j].resolution.0 )  {
+                monitors[i].left = Some(j);
+                monitors[j].right = Some(i);
+            } else if monitors[j].position.1  == (monitors[i].position.1 - monitors[j].resolution.1 )  {
+                monitors[i].up = Some(j);
+                monitors[j].down = Some(i);
             }
         }
     }
@@ -340,8 +331,8 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
 
 
 fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, monitors: &[Monitor], selected_index: usize) {
-    let total_width: i32 = monitors.iter().map(|m| m.position.0 + m.resolution.0 as i32).max().unwrap_or(0);
-    let total_height: i32 = monitors.iter().map(|m| m.position.1 + m.resolution.1 as i32).max().unwrap_or(0);
+    let total_width: f64 = monitors.iter().map(|m| m.position.0 + m.resolution.0 as i32).max().unwrap_or(0).into();
+    let total_height: f64 = monitors.iter().map(|m| m.position.1 + m.resolution.1 as i32).max().unwrap_or(0).into();
 
     let scale_x = 0.9;
     let scale_y = 0.5;
@@ -351,14 +342,14 @@ fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, mo
     }).collect();
 
     let canvas = Canvas::default()
-        .x_bounds([0.0, total_width as f64])
-        .y_bounds([0.0, total_height as f64])
+        .x_bounds([0.0, total_width])
+        .y_bounds([0.0, total_height])
         .paint(move |ctx| {
             for (i, position, resolution, is_selected, is_primary, mut name) in monitor_data.iter().cloned() {
-                let x = position.0 as f64 * scale_x + total_width as f64 * (1 as f64-scale_x)/2 as f64;
-                let y = total_height as f64 - (position.1 as f64 * scale_y as f64 + total_height as f64 * (1 as f64-scale_y)/2 as f64);
-                let width = resolution.0 as f64 * scale_x as f64;
-                let height = resolution.1 as f64 * scale_y as f64 * -1 as f64;
+                let x = position.0 as f64 * scale_x + total_width * (1.0 - scale_x)/2.0;
+                let y = total_height - (position.1 as f64 * scale_y + total_height * (1.0 - scale_y)/2.0);
+                let width = resolution.0 as f64 * scale_x;
+                let height = resolution.1 as f64 * scale_y * -1.0;
 
                 let color = if is_selected {
                     Color::LightMagenta
