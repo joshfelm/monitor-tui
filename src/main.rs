@@ -15,7 +15,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Monitor {
     name: String,
     resolution: (u32, u32),
@@ -73,9 +73,9 @@ fn main() -> Result<(), io::Error> {
 fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>) -> io::Result<()> {
     let mut selected_index = 0;
     let mut current_monitor = 0;
+    let mut selected = false;
     let mut focused_window = FocusedWindow::MonitorList;
     let mut current_state = State::Main;
-    let _primary_index = 0;
 
     loop {
         terminal.draw(|f| {
@@ -88,7 +88,11 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                 .title("Monitors")
                 .borders(Borders::ALL)
                 .style(Style::default().fg(if matches!(focused_window, FocusedWindow::MonitorList) {
-                    Color::Yellow
+                    if matches!(current_state, State::MonitorEdit) {
+                        Color::LightMagenta
+                    } else {
+                        Color::Yellow
+                    }
                 } else {
                     Color::White
                 }));
@@ -100,7 +104,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
             let info = if let Some(monitor) = monitors.get(selected_index) {
                 format!(
-                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}\nup: {}\ndown: {}\nleft: {}\n right: {}",
+                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}\nup: {}\ndown: {}\nleft: {}\n right: {}\n",
                     monitor.name,
                     monitor.resolution.0,
                     monitor.resolution.1,
@@ -136,19 +140,86 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
         if let Event::Key(key) = event::read()? {
             match key.code {
+                // quit
                 KeyCode::Char('q') => return Ok(()),
-                KeyCode::Char('h') | KeyCode::Char('l') => {
+                // save
+                KeyCode::Char('s') => {
+                    let mut iterator = monitors.iter_mut();
+                    let mut args: Vec<String> = Vec::new();
+                    while let Some(element) = iterator.next() {
+                        args.push("--output".to_string());
+                        args.push(element.name.to_string());
+                        if element.is_primary {
+                            args.push("--primary".to_string());
+                        }
+                        args.push("--mode".to_string());
+                        let modestr = format!("{}x{}", element.resolution.0, element.resolution.1);
+                        args.push(modestr);
+                        args.push("--pos".to_string());
+                        let posstr = format!("{}x{}", element.position.0, element.position.1);
+                        args.push(posstr);
+
+                    };
+                    let output = Command::new("xrandr")
+                        .args(args)
+                        .output()?;
+                    println!("{:?}", output);
+                }
+                // horizontal movement
+                KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
                     if matches!(current_state, State::MonitorEdit) {
                         if matches!(focused_window, FocusedWindow::MonitorList) {
-                            if key.code == KeyCode::Char('l') {
-                                selected_index = (selected_index + monitors.len() - 1) % monitors.len();
+                            if !selected {
+                                if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
+                                    if monitors[selected_index].right > -1 {
+                                        selected_index = monitors[selected_index].right as usize;
+                                    }
+                                } else {
+                                    if monitors[selected_index].left > -1 {
+                                        selected_index = monitors[selected_index].left as usize;
+                                    }
+                                }
                             } else {
-                                selected_index = (selected_index + 1) % monitors.len();
+                                let mut direction = 0;
+                                if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
+                                    if monitors[selected_index].right > -1 {
+                                        selected_index = monitors[selected_index].right as usize;
+                                        direction = 1;
+                                    }
+                                } else {
+                                    if monitors[selected_index].left > -1 {
+                                        selected_index = monitors[selected_index].left as usize;
+                                        direction = 2;
+                                    }
+                                }
+                                if direction != 0 && selected  {
+                                    let temp_monitor = monitors[selected_index].clone();
+                                    if direction == 1 {
+                                        monitors[selected_index].position = monitors[current_monitor].position;
+                                        monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
+                                    } else if direction == 2 {
+                                        monitors[selected_index].position.0 += monitors[current_monitor].resolution.0 as i32;
+                                        monitors[current_monitor].position = temp_monitor.position;
+                                    }
+                                    monitors[selected_index].left = monitors[current_monitor].left;
+                                    monitors[selected_index].right = monitors[current_monitor].right;
+                                    monitors[selected_index].up = monitors[current_monitor].up;
+                                    monitors[selected_index].down = monitors[current_monitor].down;
+                                    monitors[current_monitor].left = temp_monitor.left;
+                                    monitors[current_monitor].right = temp_monitor.right;
+                                    monitors[current_monitor].up = temp_monitor.up;
+                                    monitors[current_monitor].down = temp_monitor.down;
+
+                                    // update order
+                                    monitors.swap(selected_index, current_monitor);
+                                    current_monitor = selected_index;
+                                }
                             }
                         }
                     }
                 }
-                KeyCode::Char('j') | KeyCode::Char('k') => {
+                // vertical movement
+                KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
                     if matches!(current_state, State::Main) {
                         focused_window = match focused_window {
                             FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
@@ -156,25 +227,36 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                         };
                     }
                 }
+                // selection
                 KeyCode::Enter => {
                     if matches!(current_state, State::Main) {
                         current_state = State::MonitorEdit;
                     } else if matches!(current_state, State::MonitorEdit) {
                         if matches!(focused_window, FocusedWindow::MonitorList) {
-                            if monitors[current_monitor].is_selected && current_monitor != selected_index {
+                            if monitors[current_monitor].is_selected {
                                 monitors[current_monitor].is_selected = false;
-                                let temp_position = monitors[selected_index].position;
-                                monitors[selected_index].position = monitors[current_monitor].position;
-                                monitors[current_monitor].position = temp_position;
-                                // update order
-                                monitors.swap(selected_index, current_monitor);
+                                selected = false;
                             } else {
                                 current_monitor = selected_index;
                                 monitors[selected_index].is_selected = !monitors[selected_index].is_selected;
+                                selected = true;
                             }
                         }
                     }
                 }
+                // set primary
+                KeyCode::Char('p') => {
+                    if matches!(current_state, State::MonitorEdit) {
+                        if matches!(focused_window, FocusedWindow::MonitorList) {
+                            let mut iterator = monitors.iter_mut();
+                            while let Some(element) = iterator.next() {
+                                element.is_primary = false;
+                            }
+                            monitors[selected_index].is_primary = true;
+                        }
+                    }
+                }
+                // Deselect
                 KeyCode::Esc => {
                     if matches!(current_state, State::MonitorEdit) {
                         current_state = State::Main;
@@ -186,6 +268,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
     }
 }
 
+// get initial monitor information from xrandr
 fn get_monitor_info() -> io::Result<Vec<Monitor>> {
     let output = Command::new("xrandr")
         .arg("--query")
@@ -195,6 +278,7 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
     let mut monitors: Vec<Monitor> = stdout
         .lines()
         .filter(|line| line.contains(" connected"))
+        .filter(|line| line.ends_with("mm"))
         .map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
             let name = parts[0].to_string();
@@ -228,8 +312,8 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
             }
         })
         .collect();
-    //TODO: look at all the monitors: if x position of n is m+length or y is m+height (within 50%),
-    //set as right or above, and vice versa so all monitors are pointing to one another
+
+    // setup proximity sensor. TODO: allow for margin of error
     for i in 0..monitors.len() {
         for j in 0..monitors.len() {
             if i == j {
@@ -276,7 +360,9 @@ fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, mo
                 let width = resolution.0 as f64 * scale_x as f64;
                 let height = resolution.1 as f64 * scale_y as f64 * -1 as f64;
 
-                let color = if i == selected_index {
+                let color = if is_selected {
+                    Color::LightMagenta
+                } else if i == selected_index {
                     Color::Yellow
                 } else if is_primary {
                     Color::Green
@@ -294,7 +380,13 @@ fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, mo
 
                 // Draw monitor name
                 if is_selected {
-                    name = format!("<{}>", name);
+                    if is_primary {
+                        name = format!("<{}*>", name);
+                    } else {
+                        name = format!("<{}>", name);
+                    }
+                } else if is_primary {
+                    name = format!("{}*", name);
                 }
                 ctx.print(
                     x + width/2.0,

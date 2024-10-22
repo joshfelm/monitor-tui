@@ -1,5 +1,11 @@
 [package]
-name = "monitor_tui"
+name = "monitor-tui"
+description = "A terminal user interface for organising monitors"
+homepage = "https://github.com/joshfelm/monitor-tui"
+documentation = "https://github.com/joshfelm/monitor-tui"
+repository = "https://github.com/joshfelm/monitor-tui"
+keywords = ["monitor", "tui", "cli", "terminal"]
+categories = ["command-line-utilities"]
 version = "0.1.0"
 edition = "2021"
 
