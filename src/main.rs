@@ -1,5 +1,6 @@
 use std::io;
 use std::process::Command;
+use std::collections::HashMap;
 use tui::widgets::canvas::Rectangle;
 use tui::{
     backend::CrosstermBackend,
@@ -15,10 +16,12 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq)]
 struct Monitor {
     name: String,
     resolution: (i32, i32),
+    available_resolutions: HashMap<(i32, i32), Vec<f32>>,  // Resolutions with vector of framerates
+    framerate: f32,
     position: (i32, i32),
     resolution_string: String,
     position_string: String,
@@ -78,6 +81,8 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
     let mut focused_window = FocusedWindow::MonitorList;
     let mut current_state = State::Main;
 
+    let mut info_index = 0;
+
     loop {
         terminal.draw(|f| {
             let chunks = Layout::default()
@@ -105,7 +110,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
             let info = if let Some(monitor) = monitors.get(selected_index) {
                 format!(
-                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}\nup: {}\ndown: {}\nleft: {}\n right: {}\n",
+                    "Name: {}\nResolution: {}x{}\nPosition: ({}, {})\nResolution string: {}\nPosition string: {}\nPrimary: {}\nup: {}\ndown: {}\nleft: {}\n right: {}\nframerate: {}hz\nResolutions: {:?}\n",
                     monitor.name,
                     monitor.resolution.0,
                     monitor.resolution.1,
@@ -118,6 +123,8 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                     if monitor.down != None { monitors[monitor.down.unwrap()].name.to_string() } else { "None".to_string() },
                     if monitor.left != None { monitors[monitor.left.unwrap()].name.to_string() } else { "None".to_string() },
                     if monitor.right != None { monitors[monitor.right.unwrap()].name.to_string() } else { "None".to_string() },
+                    monitor.framerate,
+                    monitor.available_resolutions,
                 )
             } else {
                 "No monitor selected".to_string()
@@ -266,11 +273,36 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
         .output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut monitors: Vec<Monitor> = stdout
-        .lines()
-        .filter(|line| line.contains(" connected"))
-        .filter(|line| line.ends_with("mm"))
-        .map(|line| {
+    let mut selected_framerate = 0.0;
+    let mut monitors: Vec<Monitor> = Vec::new();
+    let mut current_monitor: Option<Monitor> = None;
+    let mut current_resolutions: HashMap<(i32, i32), Vec<f32>> = HashMap::new();  // HashMap to store resolutions and their framerates
+
+    for line in stdout.lines() {
+        if line.contains(" connected") && line.ends_with("mm") {
+            // Push the previous monitor to the list if there was one
+            if let Some(monitor) = current_monitor.take() {
+                monitors.push(Monitor {
+                    name: monitor.name,
+                    resolution: monitor.resolution,
+                    position: monitor.position,
+                    resolution_string: monitor.resolution_string,
+                    position_string: monitor.position_string,
+                    is_primary: monitor.is_primary,
+                    framerate: selected_framerate,
+                    available_resolutions: current_resolutions,
+                    is_selected: monitor.is_selected,
+                    left: monitor.left,
+                    right: monitor.right,
+                    up: monitor.up,
+                    down: monitor.down
+                });
+            }
+
+            // Reset for the next monitor
+            current_resolutions = HashMap::new();
+
+            // Parse monitor name and primary status
             let parts: Vec<&str> = line.split_whitespace().collect();
             let name = parts[0].to_string();
             let is_primary = parts.contains(&"primary");
@@ -288,21 +320,103 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 .map(|s| s.parse().unwrap_or(0))
                 .collect();
 
-            Monitor {
+            current_monitor = Some(Monitor {
                 name,
                 resolution: (resolution[0], resolution[1]),
                 position: (position[0], position2[0]),
+                framerate: selected_framerate,
                 resolution_string: resolution_part.to_string(),
                 position_string: if !is_primary { parts[2].to_string() } else { parts[3].to_string() },
                 is_primary,
+                available_resolutions: HashMap::new(),
                 is_selected: false,
                 left: None,
                 right: None,
                 up: None,
                 down: None
+            });
+        } else if line.contains(" disconnected") {
+            // Push the previous monitor to the list if there was one
+            if let Some(monitor) = current_monitor.take() {
+                monitors.push(Monitor {
+                    name: monitor.name,
+                    resolution: monitor.resolution,
+                    position: monitor.position,
+                    framerate: selected_framerate,
+                    resolution_string: monitor.resolution_string,
+                    position_string: monitor.position_string,
+                    is_primary: monitor.is_primary,
+                    available_resolutions: current_resolutions,
+                    is_selected: monitor.is_selected,
+                    left: monitor.left,
+                    right: monitor.right,
+                    up: monitor.up,
+                    down: monitor.down
+                });
             }
-        })
-        .collect();
+
+            // Reset for the next monitor
+            current_resolutions = HashMap::new();
+
+            current_monitor = None;
+        } else if let Some(_) = current_monitor.as_mut() {
+            // Parse the resolution and framerates
+            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+
+            // Check if the first part is in the format of a resolution (e.g., "2560x1600")
+            if let Some(res_part) = parts.get(0) {
+                if res_part.contains('x') {
+                    let res: Vec<i32> = res_part
+                        .split('x')
+                        .map(|s| s.parse().unwrap_or(0))
+                        .collect();
+
+                    if res.len() == 2 {
+                        let resolution = (res[0], res[1]);
+
+                        // Parse framerates from subsequent parts
+                        let mut framerates: Vec<f32> = Vec::new();
+                        for rate in parts.iter().skip(1) {
+                            // Remove any trailing '+' and check for '*' to mark it as selected
+                            let cleaned_rate = rate.trim_end_matches(['+'].as_ref());
+                            let is_selected = cleaned_rate.ends_with('*');
+                            let cleaned_rate = rate.trim_end_matches(['+','*'].as_ref());
+                            if let Ok(framerate) = cleaned_rate.parse::<f32>() {
+                                if is_selected {
+                                    selected_framerate = framerate;
+                                }
+                                framerates.push(framerate);
+                            }
+                        }
+
+                        // Insert the resolution and framerates into the hashmap
+                        current_resolutions.entry(resolution)
+                            .or_insert_with(Vec::new)
+                            .extend(framerates);
+                    }
+                }
+            }
+        }
+    }
+
+    // Push the last monitor after the loop
+    if let Some(monitor) = current_monitor.take() {
+        monitors.push(Monitor {
+            name: monitor.name,
+            resolution: monitor.resolution,
+            position: monitor.position,
+            framerate: selected_framerate,
+            resolution_string: monitor.resolution_string,
+            position_string: monitor.position_string,
+            is_primary: monitor.is_primary,
+            available_resolutions: current_resolutions,
+            is_selected: monitor.is_selected,
+            left: monitor.left,
+            right: monitor.right,
+            up: monitor.up,
+            down: monitor.down
+        });
+    }
 
     // setup proximity sensor. TODO: allow for margin of error
     for i in 0..monitors.len() {
