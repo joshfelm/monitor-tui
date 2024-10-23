@@ -38,6 +38,7 @@ enum FocusedWindow {
     MonitorInfo,
 }
 
+#[derive(Clone, PartialEq)]
 enum State {
     Main,
     MonitorEdit,
@@ -72,6 +73,35 @@ fn main() -> Result<(), io::Error> {
     }
 
     Ok(())
+}
+
+fn swap_monitors(monitors: &mut Vec<Monitor>, direction: i32, selected_index: usize, current_monitor: usize, current_state: &State) {
+    assert!(*current_state == State::MonitorEdit, "Tried to swap monitors when not in monitor edit state");
+    let temp_monitor = monitors[selected_index].clone();
+    if direction == 1 {
+        monitors[selected_index].position = monitors[current_monitor].position;
+        monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
+    } else if direction == 2 {
+        monitors[selected_index].position.0 += monitors[current_monitor].resolution.0 as i32;
+        monitors[current_monitor].position = temp_monitor.position;
+    } else if direction == 3 {
+        monitors[selected_index].position = monitors[current_monitor].position;
+        monitors[current_monitor].position.1 += temp_monitor.resolution.1 as i32;
+    } else if direction == 4 {
+        monitors[selected_index].position.1 += monitors[current_monitor].resolution.1 as i32;
+        monitors[current_monitor].position = temp_monitor.position;
+    }
+    monitors[selected_index].left = monitors[current_monitor].left;
+    monitors[selected_index].right = monitors[current_monitor].right;
+    monitors[selected_index].up = monitors[current_monitor].up;
+    monitors[selected_index].down = monitors[current_monitor].down;
+    monitors[current_monitor].left = temp_monitor.left;
+    monitors[current_monitor].right = temp_monitor.right;
+    monitors[current_monitor].up = temp_monitor.up;
+    monitors[current_monitor].down = temp_monitor.down;
+
+    // update order
+    monitors.swap(selected_index, current_monitor);
 }
 
 fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>) -> io::Result<()> {
@@ -192,26 +222,8 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                                 direction = 2;
                             }
                         }
-                        if (direction == 1 || direction == 2) && selected  {
-                            let temp_monitor = monitors[selected_index].clone();
-                            if direction == 1 {
-                                monitors[selected_index].position = monitors[current_monitor].position;
-                                monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
-                            } else if direction == 2 {
-                                monitors[selected_index].position.0 += monitors[current_monitor].resolution.0 as i32;
-                                monitors[current_monitor].position = temp_monitor.position;
-                            }
-                            monitors[selected_index].left = monitors[current_monitor].left;
-                            monitors[selected_index].right = monitors[current_monitor].right;
-                            monitors[selected_index].up = monitors[current_monitor].up;
-                            monitors[selected_index].down = monitors[current_monitor].down;
-                            monitors[current_monitor].left = temp_monitor.left;
-                            monitors[current_monitor].right = temp_monitor.right;
-                            monitors[current_monitor].up = temp_monitor.up;
-                            monitors[current_monitor].down = temp_monitor.down;
-
-                            // update order
-                            monitors.swap(selected_index, current_monitor);
+                        if direction > 0 && selected  {
+                            swap_monitors(&mut monitors, direction, selected_index, current_monitor, &current_state);
                             current_monitor = selected_index;
                         }
                     }
@@ -223,6 +235,23 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                             FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
                             FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
                         };
+                    } else if matches!(current_state, State::MonitorEdit) {
+                        let mut direction = 0;
+                        if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
+                            if monitors[selected_index].down.is_some() {
+                                selected_index = monitors[selected_index].down.unwrap();
+                                direction = 3;
+                            }
+                        } else {
+                            if monitors[selected_index].up.is_some() {
+                                selected_index = monitors[selected_index].up.unwrap();
+                                direction = 4;
+                            }
+                        }
+                        if direction > 0 && selected {
+                            swap_monitors(&mut monitors, direction, selected_index, current_monitor, &current_state);
+                            current_monitor = selected_index;
+                        }
                     }
                 }
                 // selection
@@ -425,16 +454,16 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 continue;
             }
 
-            if monitors[j].position.0 == (monitors[i].position.0 + monitors[j].resolution.0 )  {
+            if monitors[j].position.0 == (monitors[i].position.0 + monitors[j].resolution.0 ) && monitors[j].position.1 == monitors[i].position.1  {
                 monitors[i].right = Some(j);
                 monitors[j].left = Some(i);
-            } else if monitors[j].position.1  == (monitors[i].position.1 + monitors[j].resolution.1 )  {
+            } else if monitors[j].position.1  == (monitors[i].position.1 + monitors[j].resolution.1 )&& monitors[j].position.0 == monitors[i].position.0  {
                 monitors[i].down = Some(j);
                 monitors[j].up = Some(i);
-            } else if monitors[j].position.0  == (monitors[i].position.0 - monitors[j].resolution.0 )  {
+            } else if monitors[j].position.0  == (monitors[i].position.0 - monitors[j].resolution.0 ) && monitors[j].position.1 == monitors[i].position.1  {
                 monitors[i].left = Some(j);
                 monitors[j].right = Some(i);
-            } else if monitors[j].position.1  == (monitors[i].position.1 - monitors[j].resolution.1 )  {
+            } else if monitors[j].position.1  == (monitors[i].position.1 - monitors[j].resolution.1 )  && monitors[j].position.0 == monitors[i].position.0  {
                 monitors[i].up = Some(j);
                 monitors[j].down = Some(i);
             }
