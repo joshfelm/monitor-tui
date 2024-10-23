@@ -38,6 +38,25 @@ struct Monitor {
     down: Option<usize>
 }
 
+impl Monitor {
+    fn get_framerate(&self, index: usize) -> f32 {
+        return self.available_resolutions.get(&self.resolution).expect("No available framerates")[index];
+    }
+
+    fn set_framerate(&mut self, index: usize) {
+        self.framerate = self.get_framerate(index);
+    }
+
+    fn sort_resolutions(&self) -> Vec<&(i32, i32)> {
+        let mut sorted_resolutions: Vec<&(i32, i32)> = self.available_resolutions.keys().collect();
+        sorted_resolutions.sort_by(|a, b| {
+            // First sort by width, then by height if widths are the same
+            (b.0, b.1).cmp(&(a.0, a.1))
+        });
+        return sorted_resolutions;
+    }
+}
+
 enum FocusedWindow {
     MonitorList,
     MonitorInfo,
@@ -95,7 +114,7 @@ fn main() -> Result<(), io::Error> {
     let monitors = get_monitor_info()?;
 
     // Run the main loop
-    let res = run_app(&mut terminal, monitors);
+    let res = ui(&mut terminal, monitors);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -172,13 +191,7 @@ fn generate_extra_info(
                 vec![Spans::from("No available framerates")]
             }
         } else if menu_entry == MenuEntry::Resolution {
-            let mut sorted_resolutions: Vec<&(i32, i32)> = monitor.available_resolutions.keys().collect();
-            sorted_resolutions.sort_by(|a, b| {
-                // First sort by width, then by height if widths are the same
-                (b.0, b.1).cmp(&(a.0, a.1))
-            });
-
-            if let Some(resolutions) = Some(sorted_resolutions) {
+            if let Some(resolutions) = Some(monitor.sort_resolutions()) {
                 let resolution_spans: Vec<Spans> = resolutions
                     .iter()
                     .enumerate()
@@ -368,13 +381,14 @@ fn generate_monitor_info(
     }
 }
 
-fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>) -> io::Result<()> {
+fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>) -> io::Result<()> {
+    // initial setup
     let mut selected_index = 0;
     let mut current_monitor = 0;
     let mut focused_window = FocusedWindow::MonitorList;
     let mut current_state = State::Main;
 
-    let mut info_index = MenuEntry::Name;
+    let mut menu_entry = MenuEntry::Name;
     let mut extra_index: usize = 0;
 
     loop {
@@ -388,15 +402,6 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                     ]
                     .as_ref())
                 .split(f.size());
-
-            let bottom_chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(
-                    [
-                        Constraint::Percentage(50), Constraint::Percentage(50)
-                    ]
-                    .as_ref())
-                .split(chunks[1]);
 
             let monitor_block = Block::default()
                 .title("Monitors")
@@ -416,7 +421,7 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
 
             draw_monitors(f, monitor_area, &monitors, selected_index);
 
-            let info = generate_monitor_info(&monitors, selected_index, info_index);
+            let info = generate_monitor_info(&monitors, selected_index, menu_entry);
 
             let info_block = Block::default()
                 .title("Monitor Info")
@@ -435,48 +440,59 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                 .style(Style::default().fg(Color::White))
                 .wrap(tui::widgets::Wrap { trim: true });
 
-            let extra_info = generate_extra_info(&monitors, selected_index, info_index, extra_index);
+            if matches!(menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) {
+                let bottom_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints(
+                        [
+                            Constraint::Percentage(50), Constraint::Percentage(50)
+                        ]
+                            .as_ref())
+                    .split(chunks[1]);
 
-            let extra_block = Block::default()
-                .title("RightChunk")
-                .borders(Borders::ALL)
-                .style(Style::default().fg(
-                if matches!(current_state, State::InfoEdit) {
-                    Color::LightMagenta
-                } else {
-                    Color::White
-                }));
+                let extra_info = generate_extra_info(&monitors, selected_index, menu_entry, extra_index);
+                let title = if matches!(menu_entry, MenuEntry::Framerate) {"Framerate"} else {"Resolution"};
 
-            let extra_paragraph = Paragraph::new(extra_info)
-                .block(extra_block)
-                .style(Style::default().fg(Color::White))
-                .wrap(tui::widgets::Wrap { trim: true });
+                let extra_block = Block::default()
+                    .title(title)
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(
+                        if matches!(current_state, State::InfoEdit) {
+                            Color::LightMagenta
+                        } else {
+                            Color::White
+                        }));
 
-            f.render_widget(info_paragraph, bottom_chunks[0]);
-            f.render_widget(extra_paragraph, bottom_chunks[1]);
+                let extra_paragraph = Paragraph::new(extra_info)
+                    .block(extra_block)
+                    .style(Style::default().fg(Color::White))
+                    .wrap(tui::widgets::Wrap { trim: true });
+
+                f.render_widget(info_paragraph, bottom_chunks[0]);
+                f.render_widget(extra_paragraph, bottom_chunks[1]);
+            } else {
+                f.render_widget(info_paragraph, chunks[1]);
+            }
         })?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
                 // quit
                 KeyCode::Char('q') => return Ok(()),
-                // save
+                // save: send to xrandr
                 KeyCode::Char('s') => {
                     let mut iterator = monitors.iter_mut();
                     let mut args: Vec<String> = Vec::new();
                     while let Some(element) = iterator.next() {
                         args.push("--output".to_string());
                         args.push(element.name.to_string());
-                        if element.is_primary {
-                            args.push("--primary".to_string());
-                        }
+                        if element.is_primary { args.push("--primary".to_string()); }
                         args.push("--mode".to_string());
-                        let modestr = format!("{}x{}", element.resolution.0, element.resolution.1);
-                        args.push(modestr);
+                        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
+                        args.push("--rate".to_string());
+                        args.push(element.framerate.to_string());
                         args.push("--pos".to_string());
-                        let posstr = format!("{}x{}", element.position.0, element.position.1);
-                        args.push(posstr);
-
+                        args.push(format!("{}x{}", element.position.0, element.position.1));
                     };
                     let output = Command::new("xrandr")
                         .args(args)
@@ -506,81 +522,82 @@ fn run_app<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: V
                 }
                 // vertical movement
                 KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
-                    if matches!(current_state, State::Main) {
-                        focused_window = match focused_window {
-                            FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
-                            FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
-                        };
-                    } else if matches!(current_state, State::MonitorEdit | State::MonitorSwap) {
-                        let mut direction = 0;
-                        if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
-                            if monitors[selected_index].down.is_some() {
-                                selected_index = monitors[selected_index].down.unwrap();
-                                direction = 3;
-                            }
-                        } else {
-                            if monitors[selected_index].up.is_some() {
-                                selected_index = monitors[selected_index].up.unwrap();
-                                direction = 4;
-                            }
+                    match current_state {
+                        State::Main => {
+                            focused_window = match focused_window {
+                                FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
+                                FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
+                            };
                         }
-                        if direction > 0 && matches!(current_state, State::MonitorSwap) {
-                            swap_monitors(&mut monitors, direction, selected_index, current_monitor, &current_state);
-                            current_monitor = selected_index;
-                        }
-                    } else if matches!(current_state, State::MenuSelect) {
-                        if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
-                            info_index = get_next_menu_item(info_index);
-                        } else {
-                            info_index = get_prev_menu_item(info_index);
-                        }
-                        extra_index = 0;
-                    } else if matches!(current_state, State::InfoEdit) {
-                        if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
-                            let max_length;
-                            if info_index == MenuEntry::Framerate {
-                                max_length = monitors[selected_index].available_resolutions.get(&monitors[selected_index].resolution).expect("No available framerates").len() - 1;
-                            } else if info_index == MenuEntry::Resolution {
-                                max_length = monitors[selected_index].available_resolutions.keys().len() - 1;
+                        State::MonitorEdit | State::MonitorSwap => {
+                            let mut direction = 0;
+                            if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
+                                if monitors[selected_index].down.is_some() {
+                                    selected_index = monitors[selected_index].down.unwrap();
+                                    direction = 3;
+                                }
                             } else {
-                                panic!("Modifying a page that doesn't exist");
+                                if monitors[selected_index].up.is_some() {
+                                    selected_index = monitors[selected_index].up.unwrap();
+                                    direction = 4;
+                                }
                             }
-                            if extra_index < max_length { extra_index += 1; }
-                        } else {
-                            if extra_index > 0 { extra_index -= 1;}
+                            if direction > 0 && matches!(current_state, State::MonitorSwap) {
+                                swap_monitors(&mut monitors, direction, selected_index, current_monitor, &current_state);
+                                current_monitor = selected_index;
+                            }
+                        }
+                        State::MenuSelect => {
+                            if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
+                                menu_entry = get_next_menu_item(menu_entry);
+                            } else {
+                                menu_entry = get_prev_menu_item(menu_entry);
+                            }
+                            extra_index = 0;
+                        }
+                        State::InfoEdit => {
+                            if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
+                                let max_length = if menu_entry == MenuEntry::Framerate {
+                                    monitors[selected_index].available_resolutions.get(&monitors[selected_index].resolution).expect("No available framerates").len() - 1
+                                } else {
+                                    monitors[selected_index].available_resolutions.keys().len() - 1
+                                };
+                                if extra_index < max_length { extra_index += 1; }
+                            } else {
+                                if extra_index > 0 { extra_index -= 1; }
+                            }
                         }
                     }
                 }
                 // selection
                 KeyCode::Enter => {
-                    if matches!(current_state, State::Main) {
-                        if matches!(focused_window, FocusedWindow::MonitorList) {
-                            current_state = State::MonitorEdit;
-                        } else {
-                            current_state = State::MenuSelect;
+                    match current_state {
+                        State::Main => {
+                            if matches!(focused_window, FocusedWindow::MonitorList) {
+                                current_state = State::MonitorEdit;
+                            } else {
+                                current_state = State::MenuSelect;
+                            }
                         }
-                    } else if matches!(current_state, State::MonitorEdit | State::MonitorSwap) {
-                        if monitors[current_monitor].is_selected {
-                            monitors[current_monitor].is_selected = false;
-                            current_state = State::MonitorEdit;
-                        } else {
-                            current_monitor = selected_index;
-                            monitors[selected_index].is_selected = true;
-                            current_state = State::MonitorSwap;
+                        State::MonitorEdit | State::MonitorSwap => {
+                            if monitors[current_monitor].is_selected {
+                                monitors[current_monitor].is_selected = false;
+                                current_state = State::MonitorEdit;
+                            } else {
+                                current_monitor = selected_index;
+                                monitors[selected_index].is_selected = true;
+                                current_state = State::MonitorSwap;
+                            }
                         }
-                    } else if matches!(current_state, State::MenuSelect) {
-                        current_state = State::InfoEdit;
-                    } else if matches!(current_state, State::InfoEdit) {
-                        if matches!(info_index, MenuEntry::Framerate) {
-                            monitors[selected_index].framerate = monitors[selected_index].available_resolutions.get(&monitors[selected_index].resolution).expect("No available framerates")[extra_index];
-                        } else if matches!(info_index, MenuEntry::Resolution) {
-                            let mut sorted_resolutions: Vec<&(i32, i32)> = monitors[selected_index].available_resolutions.keys().collect();
-                            sorted_resolutions.sort_by(|a, b| {
-                                // First sort by width, then by height if widths are the same
-                                (b.0, b.1).cmp(&(a.0, a.1))
-                            });
-                            monitors[selected_index].resolution = *sorted_resolutions[extra_index];
-                            monitors[selected_index].framerate = monitors[selected_index].available_resolutions.get(&monitors[selected_index].resolution).expect("No available framerates")[0];
+                        State::MenuSelect => {
+                            current_state = State::InfoEdit;
+                        }
+                        State::InfoEdit => {
+                            assert!(matches!(menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
+                            if matches!(menu_entry, MenuEntry::Resolution) {
+                                monitors[selected_index].resolution = *monitors[selected_index].sort_resolutions()[extra_index];
+                            }
+                            monitors[selected_index].set_framerate(extra_index);
                         }
                     }
                 }
@@ -624,6 +641,7 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
     let mut current_resolutions: HashMap<(i32, i32), Vec<f32>> = HashMap::new();  // HashMap to store resolutions and their framerates
 
     for line in stdout.lines() {
+        // include ends with mm to make sure we only get monitors that are connected AND in use
         if line.contains(" connected") && line.ends_with("mm") {
             // Push the previous monitor to the list if there was one
             if let Some(monitor) = current_monitor.take() {
@@ -770,16 +788,16 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 continue;
             }
 
-            if monitors[j].position.0 == (monitors[i].position.0 + monitors[j].resolution.0 ) && monitors[j].position.1 == monitors[i].position.1  {
+            if monitors[j].position.0 == (monitors[i].position.0 + monitors[j].resolution.0) && monitors[j].position.1 == monitors[i].position.1  {
                 monitors[i].right = Some(j);
                 monitors[j].left = Some(i);
-            } else if monitors[j].position.1  == (monitors[i].position.1 + monitors[j].resolution.1 )&& monitors[j].position.0 == monitors[i].position.0  {
+            } else if monitors[j].position.1  == (monitors[i].position.1 + monitors[j].resolution.1) && monitors[j].position.0 == monitors[i].position.0  {
                 monitors[i].down = Some(j);
                 monitors[j].up = Some(i);
-            } else if monitors[j].position.0  == (monitors[i].position.0 - monitors[j].resolution.0 ) && monitors[j].position.1 == monitors[i].position.1  {
+            } else if monitors[j].position.0  == (monitors[i].position.0 - monitors[j].resolution.0) && monitors[j].position.1 == monitors[i].position.1  {
                 monitors[i].left = Some(j);
                 monitors[j].right = Some(i);
-            } else if monitors[j].position.1  == (monitors[i].position.1 - monitors[j].resolution.1 )  && monitors[j].position.0 == monitors[i].position.0  {
+            } else if monitors[j].position.1  == (monitors[i].position.1 - monitors[j].resolution.1)  && monitors[j].position.0 == monitors[i].position.0  {
                 monitors[i].up = Some(j);
                 monitors[j].down = Some(i);
             }
@@ -787,7 +805,6 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
     }
     Ok(monitors)
 }
-
 
 fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, monitors: &[Monitor], selected_index: usize) {
     let total_width: f64 = monitors.iter().map(|m| m.position.0 + m.resolution.0 as i32).max().unwrap_or(0).into();
