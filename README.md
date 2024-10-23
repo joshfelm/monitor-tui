@@ -13,8 +13,9 @@ soon).
 ## Todo
 - [ ] Help window
 - [ ] Handle disconnected monitors
-- [ ] Modify refresh rate
-- [ ] Modify resolution
+- [x] Modify refresh rate
+- [x] Modify resolution
+- [ ] Presets (horizontal, vertical, defaults, etc)
 - [ ] Undo
 - [ ] Autorandr integration
 - [ ] Monitors.xml integration
