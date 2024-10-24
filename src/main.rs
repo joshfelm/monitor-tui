@@ -28,8 +28,6 @@ struct Monitor {
     available_resolutions: HashMap<(i32, i32), Vec<f32>>,  // Resolutions with vector of framerates
     framerate: f32,
     position: (i32, i32),
-    resolution_string: String,
-    position_string: String,
     is_primary: bool,
     is_selected: bool,
     left: Option<usize>,
@@ -64,7 +62,6 @@ enum FocusedWindow {
 
 #[derive(Clone, PartialEq, Debug)]
 enum State {
-    Main,
     MonitorEdit,
     MonitorSwap,
     MenuSelect,
@@ -78,8 +75,6 @@ enum MenuEntry{
     Position,
     Primary,
     Framerate,
-    ResolutionDbg,
-    PositionDbg,
     Left,
     Down,
     Up,
@@ -165,7 +160,8 @@ fn generate_extra_info(
     monitors: &Vec<Monitor>,
     selected_index: usize,
     menu_entry: MenuEntry,
-    extra_entry: usize
+    extra_entry: usize,
+    current_state: State,
 ) -> Vec<Spans> {
     if let Some(monitor) = monitors.get(selected_index) {
         if menu_entry == MenuEntry::Framerate {
@@ -178,7 +174,14 @@ fn generate_extra_info(
                             Span::styled(
                                 format!("Option {}: {}hz", i, fr),
                                 if extra_entry == i {
-                                    Style::default().add_modifier(Modifier::BOLD)
+                                    Style::default()
+                                        .add_modifier(Modifier::BOLD)
+                                        .fg(if matches!(current_state, State::InfoEdit) {
+                                                Color::Yellow
+                                            } else {
+                                                Color::White
+                                            }
+                                        )
                                 } else {
                                     Style::default()
                                 }
@@ -200,7 +203,14 @@ fn generate_extra_info(
                             Span::styled(
                                 format!("Option {}: {}x{}", i, res.0, res.1),
                                 if extra_entry == i {
-                                    Style::default().add_modifier(Modifier::BOLD)
+                                    Style::default()
+                                        .add_modifier(Modifier::BOLD)
+                                        .fg(if matches!(current_state, State::InfoEdit) {
+                                                Color::Yellow
+                                            } else {
+                                                Color::White
+                                            }
+                                        )
                                 } else {
                                     Style::default()
                                 }
@@ -223,7 +233,8 @@ fn generate_extra_info(
 fn generate_monitor_info(
     monitors: &Vec<Monitor>,
     selected_index: usize,
-    menu_entry: MenuEntry
+    menu_entry: MenuEntry,
+    current_state: State
 ) -> Vec<Spans> {
     if let Some(monitor) = monitors.get(selected_index) {
         vec![
@@ -231,7 +242,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Name: {}", monitor.name),
                     if menu_entry == MenuEntry::Name {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     }
@@ -241,7 +261,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Resolution: {}x{}", monitor.resolution.0, monitor.resolution.1),
                     if menu_entry == MenuEntry::Resolution {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -251,7 +280,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Position: ({}, {})", monitor.position.0, monitor.position.1),
                     if menu_entry == MenuEntry::Position {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -261,7 +299,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Primary: {}", if monitor.is_primary { "Yes" } else { "No" }),
                     if menu_entry == MenuEntry::Primary {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -271,27 +318,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Framerate: {}hz", monitor.framerate),
                     if menu_entry == MenuEntry::Framerate {
-                        Style::default().add_modifier(Modifier::BOLD)
-                    } else {
                         Style::default()
-                    },
-                )
-            ]),
-            Spans::from(vec![
-                Span::styled(
-                    format!("Resolution string: {}", monitor.resolution_string),
-                    if menu_entry == MenuEntry::ResolutionDbg {
-                        Style::default().add_modifier(Modifier::BOLD)
-                    } else {
-                        Style::default()
-                    },
-                )
-            ]),
-            Spans::from(vec![
-                Span::styled(
-                    format!("Position string: {}", monitor.position_string),
-                    if menu_entry == MenuEntry::PositionDbg {
-                        Style::default().add_modifier(Modifier::BOLD)
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -308,7 +344,16 @@ fn generate_monitor_info(
                         }
                     ),
                     if menu_entry == MenuEntry::Left {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                Color::LightMagenta
+                            } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -325,7 +370,16 @@ fn generate_monitor_info(
                         }
                     ),
                     if menu_entry == MenuEntry::Down {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                Color::LightMagenta
+                            } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -342,7 +396,16 @@ fn generate_monitor_info(
                         }
                     ),
                     if menu_entry == MenuEntry::Up {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -359,7 +422,16 @@ fn generate_monitor_info(
                         }
                     ),
                     if menu_entry == MenuEntry::Right {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                Color::LightMagenta
+                            } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -369,7 +441,16 @@ fn generate_monitor_info(
                 Span::styled(
                     format!("Resolutions: {:?}", monitor.available_resolutions.get(&monitor.resolution).expect("No available framerates").len()),
                     if menu_entry == MenuEntry::Resolutions {
-                        Style::default().add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(if matches!(current_state, State::InfoEdit) {
+                                    Color::LightMagenta
+                                } else if matches!(current_state, State::MenuSelect) {
+                                    Color::Yellow
+                                } else {
+                                    Color::White
+                                }
+                            )
                     } else {
                         Style::default()
                     },
@@ -386,7 +467,8 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
     let mut selected_index = 0;
     let mut current_monitor = 0;
     let mut focused_window = FocusedWindow::MonitorList;
-    let mut current_state = State::Main;
+    let mut current_state = State::MonitorEdit;
+    let mut previous_state = State::MonitorEdit;
 
     let mut menu_entry = MenuEntry::Name;
     let mut extra_index: usize = 0;
@@ -421,7 +503,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
 
             draw_monitors(f, monitor_area, &monitors, selected_index);
 
-            let info = generate_monitor_info(&monitors, selected_index, menu_entry);
+            let info = generate_monitor_info(&monitors, selected_index, menu_entry, current_state.clone());
 
             let info_block = Block::default()
                 .title("Monitor Info")
@@ -450,7 +532,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                             .as_ref())
                     .split(chunks[1]);
 
-                let extra_info = generate_extra_info(&monitors, selected_index, menu_entry, extra_index);
+                let extra_info = generate_extra_info(&monitors, selected_index, menu_entry, extra_index, current_state.clone());
                 let title = if matches!(menu_entry, MenuEntry::Framerate) {"Framerate"} else {"Resolution"};
 
                 let extra_block = Block::default()
@@ -506,11 +588,13 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                         if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
                             if monitors[selected_index].right.is_some() {
                                 selected_index = monitors[selected_index].right.unwrap();
+                                extra_index = 0;
                                 direction = 1;
                             }
                         } else {
                             if monitors[selected_index].left.is_some() {
                                 selected_index = monitors[selected_index].left.unwrap();
+                                extra_index = 0;
                                 direction = 2;
                             }
                         }
@@ -523,22 +607,18 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 // vertical movement
                 KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
                     match current_state {
-                        State::Main => {
-                            focused_window = match focused_window {
-                                FocusedWindow::MonitorList => FocusedWindow::MonitorInfo,
-                                FocusedWindow::MonitorInfo => FocusedWindow::MonitorList,
-                            };
-                        }
                         State::MonitorEdit | State::MonitorSwap => {
                             let mut direction = 0;
                             if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
                                 if monitors[selected_index].down.is_some() {
                                     selected_index = monitors[selected_index].down.unwrap();
+                                    extra_index = 0;
                                     direction = 3;
                                 }
                             } else {
                                 if monitors[selected_index].up.is_some() {
                                     selected_index = monitors[selected_index].up.unwrap();
+                                    extra_index = 0;
                                     direction = 4;
                                 }
                             }
@@ -572,25 +652,19 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 // selection
                 KeyCode::Enter => {
                     match current_state {
-                        State::Main => {
-                            if matches!(focused_window, FocusedWindow::MonitorList) {
-                                current_state = State::MonitorEdit;
-                            } else {
-                                current_state = State::MenuSelect;
-                            }
-                        }
                         State::MonitorEdit | State::MonitorSwap => {
                             if monitors[current_monitor].is_selected {
                                 monitors[current_monitor].is_selected = false;
-                                current_state = State::MonitorEdit;
                             } else {
                                 current_monitor = selected_index;
                                 monitors[selected_index].is_selected = true;
-                                current_state = State::MonitorSwap;
                             }
+                            previous_state = current_state;
+                            current_state = State::MenuSelect;
+                            focused_window = FocusedWindow::MonitorInfo;
                         }
                         State::MenuSelect => {
-                            current_state = State::InfoEdit;
+                            if matches!(menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { current_state = State::InfoEdit; }
                         }
                         State::InfoEdit => {
                             assert!(matches!(menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
@@ -599,6 +673,18 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                             }
                             monitors[selected_index].set_framerate(extra_index);
                         }
+                    }
+                }
+                // move
+                KeyCode::Char('m') => {
+                    if matches!(current_state, State::MonitorEdit | State::MenuSelect) {
+                        if matches!(current_state, State::MonitorEdit) {
+                            monitors[selected_index].is_selected = true;
+                            current_monitor = selected_index;
+                        }
+                        previous_state = current_state;
+                        current_state = State::MonitorSwap;
+                        focused_window = FocusedWindow::MonitorList;
                     }
                 }
                 // set primary
@@ -613,11 +699,17 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 }
                 // Deselect
                 KeyCode::Esc => {
-                    if matches!(current_state, State::MonitorEdit | State::MenuSelect) {
-                        current_state = State::Main;
-                    } else if matches!(current_state, State::MonitorSwap) {
+                    if matches!(current_state, State::MenuSelect) {
                         monitors[current_monitor].is_selected = false;
                         current_state = State::MonitorEdit;
+                        focused_window = FocusedWindow::MonitorList;
+                    } else if matches!(current_state, State::MonitorSwap) {
+                        focused_window = FocusedWindow::MonitorInfo;
+                        if matches!(previous_state, State::MonitorEdit) {
+                            monitors[current_monitor].is_selected = false;
+                            focused_window = FocusedWindow::MonitorList;
+                        }
+                        current_state = previous_state.clone();
                     } else if matches!(current_state, State::InfoEdit) {
                         current_state = State::MenuSelect;
                     }
@@ -649,8 +741,6 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                     name: monitor.name,
                     resolution: monitor.resolution,
                     position: monitor.position,
-                    resolution_string: monitor.resolution_string,
-                    position_string: monitor.position_string,
                     is_primary: monitor.is_primary,
                     framerate: selected_framerate,
                     available_resolutions: current_resolutions,
@@ -688,8 +778,6 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                 resolution: (resolution[0], resolution[1]),
                 position: (position[0], position2[0]),
                 framerate: selected_framerate,
-                resolution_string: resolution_part.to_string(),
-                position_string: if !is_primary { parts[2].to_string() } else { parts[3].to_string() },
                 is_primary,
                 available_resolutions: HashMap::new(),
                 is_selected: false,
@@ -706,8 +794,6 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
                     resolution: monitor.resolution,
                     position: monitor.position,
                     framerate: selected_framerate,
-                    resolution_string: monitor.resolution_string,
-                    position_string: monitor.position_string,
                     is_primary: monitor.is_primary,
                     available_resolutions: current_resolutions,
                     is_selected: monitor.is_selected,
@@ -769,8 +855,6 @@ fn get_monitor_info() -> io::Result<Vec<Monitor>> {
             resolution: monitor.resolution,
             position: monitor.position,
             framerate: selected_framerate,
-            resolution_string: monitor.resolution_string,
-            position_string: monitor.position_string,
             is_primary: monitor.is_primary,
             available_resolutions: current_resolutions,
             is_selected: monitor.is_selected,
