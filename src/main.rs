@@ -92,6 +92,14 @@ enum FocusedWindow {
     MonitorInfo,
 }
 
+#[derive(PartialEq)]
+enum Dir {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
 #[derive(Clone, PartialEq, Debug, Copy)]
 enum State {
     MonitorEdit,
@@ -159,19 +167,19 @@ fn main() -> Result<(), io::Error> {
     Ok(())
 }
 
-fn swap_monitors(monitors: &mut Vec<Monitor>, direction: i32, app: App) {
+fn swap_monitors(monitors: &mut Vec<Monitor>, direction: Dir, app: App) {
     assert!(app.state == State::MonitorSwap, "Tried to swap monitors when not in monitor edit state, actual state: {:?}", app.state);
     let temp_monitor = monitors[app.selected_monitor].clone();
-    if direction == 1 {
+    if direction == Dir::Right {
         monitors[app.selected_monitor].position = monitors[app.current_monitor].position;
         monitors[app.current_monitor].position.0 += temp_monitor.resolution.0 as i32;
-    } else if direction == 2 {
+    } else if direction == Dir::Left {
         monitors[app.selected_monitor].position.0 += monitors[app.current_monitor].resolution.0 as i32;
         monitors[app.current_monitor].position = temp_monitor.position;
-    } else if direction == 3 {
+    } else if direction == Dir::Down {
         monitors[app.selected_monitor].position = monitors[app.current_monitor].position;
         monitors[app.current_monitor].position.1 += temp_monitor.resolution.1 as i32;
-    } else if direction == 4 {
+    } else if direction == Dir::Up {
         monitors[app.selected_monitor].position.1 += monitors[app.current_monitor].resolution.1 as i32;
         monitors[app.current_monitor].position = temp_monitor.position;
     }
@@ -186,6 +194,59 @@ fn swap_monitors(monitors: &mut Vec<Monitor>, direction: i32, app: App) {
 
     // update order
     monitors.swap(app.selected_monitor, app.current_monitor);
+}
+
+// TODO: for the < 0 check, if should recursively adjust all connected monitors by the same amount
+fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_dir: Dir, app:App) {
+    if dir == Dir::Left {
+        monitors[pivot_monitor].right = None;
+        monitors[app.selected_monitor].left = None;
+    } else if dir == Dir::Right {
+        monitors[pivot_monitor].left = None;
+        monitors[app.selected_monitor].right = None;
+    }
+    if monitors[pivot_monitor].position.0 > monitors[app.selected_monitor].position.0 {
+        monitors[pivot_monitor].position.0 = monitors[app.selected_monitor].position.0
+    }
+    if vert_dir == Dir::Down {
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 + monitors[pivot_monitor].resolution.1);
+        monitors[pivot_monitor].down = Some(app.selected_monitor);
+        monitors[app.selected_monitor].up = Some(pivot_monitor);
+    } else if vert_dir == Dir::Up {
+        let new_pos_1 = monitors[pivot_monitor].position.1 - monitors[pivot_monitor].resolution.1;
+        if new_pos_1 < 0 {
+            monitors[pivot_monitor].position.1 = monitors[app.selected_monitor].resolution.1;
+        }
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].resolution.1);
+        monitors[pivot_monitor].up = Some(app.selected_monitor);
+        monitors[app.selected_monitor].down = Some(pivot_monitor);
+    }
+}
+
+fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_dir: Dir, app:App) {
+    if dir == Dir::Up {
+        monitors[pivot_monitor].down = None;
+        monitors[app.selected_monitor].up = None;
+    } else if dir == Dir::Down {
+        monitors[pivot_monitor].up = None;
+        monitors[app.selected_monitor].down = None;
+    }
+    if monitors[pivot_monitor].position.1 > monitors[app.selected_monitor].position.1 {
+        monitors[pivot_monitor].position.1 = monitors[app.selected_monitor].position.1
+    }
+    if vert_dir == Dir::Right {
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 + monitors[pivot_monitor].resolution.0, monitors[pivot_monitor].position.1);
+        monitors[pivot_monitor].right = Some(app.selected_monitor);
+        monitors[app.selected_monitor].left = Some(pivot_monitor);
+    } else if vert_dir == Dir::Left {
+        let new_pos_1 = monitors[pivot_monitor].position.0 - monitors[pivot_monitor].resolution.0;
+        if new_pos_1 < 0 {
+            monitors[pivot_monitor].position.0 = monitors[app.selected_monitor].resolution.0;
+        }
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].resolution.0, monitors[pivot_monitor].position.1);
+        monitors[pivot_monitor].left = Some(app.selected_monitor);
+        monitors[app.selected_monitor].right = Some(pivot_monitor);
+    }
 }
 
 fn generate_extra_info(
@@ -603,48 +664,117 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 }
                 // horizontal movement
                 KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
-                    if matches!(app.state, State::MonitorEdit) || matches!(app.state, State::MonitorSwap) {
-                        let mut direction = 0;
+                    if matches!(app.state, State::MonitorEdit) {
+                        let mut direction: Option<Dir> = None;
                         if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
                             if monitors[app.selected_monitor].right.is_some() {
                                 app.selected_monitor = monitors[app.selected_monitor].right.unwrap();
-                                app.extra_entry = 0;
-                                direction = 1;
+                                direction = Some(Dir::Right);
                             }
                         } else {
                             if monitors[app.selected_monitor].left.is_some() {
                                 app.selected_monitor = monitors[app.selected_monitor].left.unwrap();
-                                app.extra_entry = 0;
-                                direction = 2;
+                                direction = Some(Dir::Left);
                             }
                         }
-                        if direction > 0 && matches!(app.state, State::MonitorSwap)  {
-                            swap_monitors(&mut monitors, direction, app);
+                        if direction.is_some() && matches!(app.state, State::MonitorSwap)  {
+                            app.extra_entry = 0;
+                            swap_monitors(&mut monitors, direction.unwrap(), app);
                             app.current_monitor = app.selected_monitor;
+                        }
+                    } else if matches!(app.state, State::MonitorSwap) {
+                        let direction: Option<Dir>;
+                        let mut pivot_monitor: Option<usize> = None;
+                        let mut vert_direction: Option<Dir> = None;
+                        let mut swap: bool = false;
+                        if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
+                            if monitors[app.selected_monitor].right.is_some() {
+                                app.selected_monitor = monitors[app.selected_monitor].right.unwrap();
+                                swap = true;
+                            }
+                            direction = Some(Dir::Right);
+                        } else {
+                            if monitors[app.selected_monitor].left.is_some() {
+                                app.selected_monitor = monitors[app.selected_monitor].left.unwrap();
+                                swap = true;
+                            }
+                            direction = Some(Dir::Left);
+                        }
+                        if swap {
+                            app.extra_entry = 0;
+                            swap_monitors(&mut monitors, direction.unwrap(), app);
+                            app.current_monitor = app.selected_monitor;
+                        } else {
+                            //look for up or down
+                            if monitors[app.selected_monitor].up.is_some() {
+                                pivot_monitor = monitors[app.selected_monitor].up;
+                                vert_direction = Some(Dir::Up);
+                            } else if monitors[app.selected_monitor].down.is_some() {
+                                pivot_monitor = monitors[app.selected_monitor].down;
+                                vert_direction = Some(Dir::Down);
+                            }
+                            if pivot_monitor.is_some() {
+                                horizontal_push(&mut monitors, pivot_monitor.unwrap(), vert_direction.unwrap(), direction.unwrap(), app);
+                            }
                         }
                     }
                 }
                 // vertical movement
                 KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
                     match app.state {
-                        State::MonitorEdit | State::MonitorSwap => {
-                            let mut direction = 0;
+                        State::MonitorEdit  => {
+                            let mut direction: Option<Dir> = None;
                             if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
                                 if monitors[app.selected_monitor].down.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].down.unwrap();
-                                    app.extra_entry = 0;
-                                    direction = 3;
+                                    direction = Some(Dir::Down);
                                 }
                             } else {
                                 if monitors[app.selected_monitor].up.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].up.unwrap();
-                                    app.extra_entry = 0;
-                                    direction = 4;
+                                    direction = Some(Dir::Up);
                                 }
                             }
-                            if direction > 0 && matches!(app.state, State::MonitorSwap) {
-                                swap_monitors(&mut monitors, direction, app);
+                            if direction.is_some() && matches!(app.state, State::MonitorSwap) {
+                                app.extra_entry = 0;
+                                swap_monitors(&mut monitors, direction.unwrap(), app);
                                 app.current_monitor = app.selected_monitor;
+                            }
+                        }
+                        State::MonitorSwap => {
+                            let direction: Option<Dir>;
+                            let mut pivot_monitor: Option<usize> = None;
+                            let mut vert_direction: Option<Dir> = None;
+                            let mut swap: bool = false;
+                            if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
+                                if monitors[app.selected_monitor].down.is_some() {
+                                    app.selected_monitor = monitors[app.selected_monitor].down.unwrap();
+                                    swap = true;
+                                }
+                                direction = Some(Dir::Down);
+                            } else {
+                                if monitors[app.selected_monitor].up.is_some() {
+                                    app.selected_monitor = monitors[app.selected_monitor].up.unwrap();
+                                    swap = true;
+                                }
+                                direction = Some(Dir::Up);
+                            }
+                            if swap {
+                                app.extra_entry = 0;
+                                swap_monitors(&mut monitors, direction.unwrap(), app);
+                                app.current_monitor = app.selected_monitor;
+                            } else {
+                                //look for the left or right
+                                if monitors[app.selected_monitor].left.is_some() {
+                                    pivot_monitor = monitors[app.selected_monitor].left;
+                                    vert_direction = Some(Dir::Left);
+                                } else if monitors[app.selected_monitor].right.is_some() {
+                                    pivot_monitor = monitors[app.selected_monitor].right;
+                                    vert_direction = Some(Dir::Right);
+                                }
+                                if pivot_monitor.is_some() {
+                                    vert_push(&mut monitors, pivot_monitor.unwrap(), vert_direction.unwrap(), direction.unwrap(), app);
+                                }
                             }
                         }
                         State::MenuSelect => {
