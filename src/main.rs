@@ -6,6 +6,8 @@ mod debug;
 
 use crate::debug::xrandr_debug::XRANDR_OUTPUT;
 
+use std::env;
+
 use num_traits::FromPrimitive;
 use std::io;
 use std::process::Command;
@@ -164,7 +166,15 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let debug = true;
+    let mut debug = false;
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() == 2 {
+        let argument = &args[1];
+        if argument == "-d" {
+            debug = true;
+        }
+    }
 
     // Get monitor information
     let monitors = get_monitor_info(debug)?;
