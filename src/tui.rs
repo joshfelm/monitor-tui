@@ -30,11 +30,12 @@ struct App {
     current_monitor: usize,
     focused_window: FocusedWindow,
     menu_entry: MenuEntry,
-    extra_entry: usize
+    extra_entry: usize,
+    debug: bool
 }
 
 impl App {
-    fn new() -> App {
+    fn new(dbg: bool) -> App {
         App {
             selected_monitor: 0,
             current_monitor: 0,
@@ -44,6 +45,7 @@ impl App {
 
             menu_entry: MenuEntry::Name,
             extra_entry: 0,
+            debug: dbg,
         }
     }
 
@@ -119,7 +121,7 @@ pub fn run_tui(debug: bool) -> Result<(), io::Error> {
     monitor_proximity(&mut monitors);
 
     // Run the main loop
-    let res = ui(&mut terminal, monitors);
+    let res = ui(&mut terminal, monitors, debug);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -139,9 +141,9 @@ pub fn run_tui(debug: bool) -> Result<(), io::Error> {
     Ok(())
 }
 
-fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>) -> io::Result<()> {
+fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Monitor>, debug: bool) -> io::Result<()> {
     // initial setup
-    let mut app = App::new();
+    let mut app = App::new(debug);
 
     loop {
         terminal.draw(|f| {
@@ -160,6 +162,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 let mut iterator = monitors.iter_mut();
                 let mut args: Vec<String> = Vec::new();
                 while let Some(element) = iterator.next() {
+                    args.push("\n> ".to_string());
                     args.push("--output".to_string());
                     args.push(element.name.to_string());
                     if element.is_primary { args.push("--primary".to_string()); }
@@ -276,32 +279,33 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 }
                 // debug the command
                 KeyCode::Char('d') => {
-
-                    app.update_state(State::DebugPopup);
-                    println!("")
-
+                    if !matches!(app.state, State::DebugPopup) {
+                        app.update_state(State::DebugPopup);
+                    }
                 }
                 // save: send to xrandr
                 KeyCode::Char('s') => {
-                    let mut iterator = monitors.iter_mut();
-                    let mut args: Vec<String> = Vec::new();
-                    while let Some(element) = iterator.next() {
-                        args.push("--output".to_string());
-                        args.push(element.name.to_string());
-                        if element.is_primary { args.push("--primary".to_string()); }
-                        args.push("--mode".to_string());
-                        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
-                        args.push("--rate".to_string());
-                        args.push(element.framerate.to_string());
-                        args.push("--pos".to_string());
-                        args.push(format!("{}x{}", element.position.0, element.position.1));
-                        args.push("--scale".to_string());
-                        args.push(format!("{:.2}", element.scale));
-                    };
-                    let output = Command::new("xrandr")
-                        .args(args)
-                        .output()?;
-                    println!("{:?}", output);
+                    if !app.debug {
+                        let mut iterator = monitors.iter_mut();
+                        let mut args: Vec<String> = Vec::new();
+                        while let Some(element) = iterator.next() {
+                            args.push("--output".to_string());
+                            args.push(element.name.to_string());
+                            if element.is_primary { args.push("--primary".to_string()); }
+                            args.push("--mode".to_string());
+                            args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
+                            args.push("--rate".to_string());
+                            args.push(element.framerate.to_string());
+                            args.push("--pos".to_string());
+                            args.push(format!("{}x{}", element.position.0, element.position.1));
+                            args.push("--scale".to_string());
+                            args.push(format!("{:.2}", element.scale));
+                        };
+                        let output = Command::new("xrandr")
+                            .args(args)
+                            .output()?;
+                        println!("{:?}", output);
+                    }
                 }
                 // horizontal movement
                 KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
@@ -473,7 +477,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                 KeyCode::Enter => {
                     match app.state {
                         State::MonitorEdit | State::MonitorSwap => {
-                            if monitors[app.current_monitor].is_selected {
+                            if monitors[app.current_monitor].is_selected && matches!(app.state, State::MonitorEdit) {
                                 monitors[app.current_monitor].is_selected = false;
                             } else {
                                 app.current_monitor = app.selected_monitor;
@@ -493,7 +497,6 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
                                 let difference = (new_res.0 - old_res.0, new_res.1 - old_res.1);
                                 shift_res(&mut monitors, app.current_monitor, difference);
 
-                                // Reuse the computed `new_res` for setting other values
                                 let updated_res = monitors[app.selected_monitor].sort_resolutions()[app.extra_entry];
                                 monitors[app.selected_monitor].resolution = *updated_res;
                                 let updated_res = monitors[app.selected_monitor].sort_resolutions()[app.extra_entry];
@@ -1004,15 +1007,15 @@ fn swap_monitors(monitors: &mut Vec<Monitor>, current_monitor: usize, switching_
     let temp_monitor = monitors[switching_monitor].clone();
     if direction == Dir::Right {
         monitors[switching_monitor].position = monitors[current_monitor].position;
-        monitors[current_monitor].position.0 += temp_monitor.resolution.0 as i32;
+        monitors[current_monitor].position.0 += temp_monitor.displayed_resolution.0 as i32;
     } else if direction == Dir::Left {
-        monitors[switching_monitor].position.0 += monitors[current_monitor].resolution.0 as i32;
+        monitors[switching_monitor].position.0 += monitors[current_monitor].displayed_resolution.0 as i32;
         monitors[current_monitor].position = temp_monitor.position;
     } else if direction == Dir::Down {
         monitors[switching_monitor].position = monitors[current_monitor].position;
-        monitors[current_monitor].position.1 += temp_monitor.resolution.1 as i32;
+        monitors[current_monitor].position.1 += temp_monitor.displayed_resolution.1 as i32;
     } else if direction == Dir::Up {
-        monitors[switching_monitor].position.1 += monitors[current_monitor].resolution.1 as i32;
+        monitors[switching_monitor].position.1 += monitors[current_monitor].displayed_resolution.1 as i32;
         monitors[current_monitor].position = temp_monitor.position;
     }
     monitors[switching_monitor].left = monitors[current_monitor].left;
@@ -1080,16 +1083,16 @@ fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_d
         shift_mons(monitors, pivot_monitor, difference, false, Vec::new());
     }
     if vert_dir == Dir::Down {
-        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 + monitors[pivot_monitor].resolution.1);
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 + monitors[pivot_monitor].displayed_resolution.1);
         monitors[pivot_monitor].down = Some(app.selected_monitor);
         monitors[app.selected_monitor].up = Some(pivot_monitor);
     } else if vert_dir == Dir::Up {
-        let new_pos_1 = monitors[pivot_monitor].position.1 - monitors[pivot_monitor].resolution.1;
+        let new_pos_1 = monitors[pivot_monitor].position.1 - monitors[pivot_monitor].displayed_resolution.1;
         if new_pos_1 < 0 {
-            let difference = monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].resolution.1;
+            let difference = monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].displayed_resolution.1;
             shift_mons(monitors, pivot_monitor, difference, true, Vec::new());
         }
-        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].resolution.1);
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].displayed_resolution.1);
     }
     monitor_proximity(monitors);
 }
@@ -1107,16 +1110,16 @@ fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, 
         shift_mons(monitors, pivot_monitor, difference, true, Vec::new());
     }
     if vert_dir == Dir::Right {
-        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 + monitors[pivot_monitor].resolution.0, monitors[pivot_monitor].position.1);
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 + monitors[pivot_monitor].displayed_resolution.0, monitors[pivot_monitor].position.1);
         monitors[pivot_monitor].right = Some(app.selected_monitor);
         monitors[app.selected_monitor].left = Some(pivot_monitor);
     } else if vert_dir == Dir::Left {
-        let new_pos_1 = monitors[pivot_monitor].position.0 - monitors[pivot_monitor].resolution.0;
+        let new_pos_1 = monitors[pivot_monitor].position.0 - monitors[pivot_monitor].displayed_resolution.0;
         if new_pos_1 < 0 {
-            let difference = monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].resolution.0;
+            let difference = monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].displayed_resolution.0;
             shift_mons(monitors, pivot_monitor, difference, false, Vec::new());
         }
-        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].resolution.0, monitors[pivot_monitor].position.1);
+        monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].displayed_resolution.0, monitors[pivot_monitor].position.1);
         monitors[pivot_monitor].left = Some(app.selected_monitor);
         monitors[app.selected_monitor].right = Some(pivot_monitor);
     }
