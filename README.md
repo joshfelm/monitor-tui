@@ -10,6 +10,10 @@ terminal!
 Save your layouts using autorandr, export to monitors.xml and more (coming
 soon).
 
+## Debug mode
+Run with `cargo run -- -d` to enable debug mode. This enables a 3 monitor
+layout for testing purposes
+
 ## Todo
 - [ ] Help window
 - [ ] Handle disconnected monitors
@@ -19,3 +23,4 @@ soon).
 - [ ] Undo
 - [ ] Autorandr integration
 - [ ] Monitors.xml integration
+- [x] Add debug mode
