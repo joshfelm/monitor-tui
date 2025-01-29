@@ -1064,7 +1064,7 @@ fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_d
     if dir == Dir::Left {
         monitors[app.selected_monitor].left = None;
         if monitors[app.selected_monitor].right.is_some() {
-            let difference = monitors[monitors[app.selected_monitor].right.unwrap()].position.0 - monitors[app.selected_monitor].position.0;
+            let difference = monitors[monitors[app.selected_monitor].right.unwrap()].position.0 - monitors[app.selected_monitor].displayed_resolution.0;
             shift_mons(monitors, monitors[app.selected_monitor].right.unwrap(), difference, false, Vec::new());
         }
         monitors[app.selected_monitor].right = None;
@@ -1072,7 +1072,7 @@ fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_d
     } else if dir == Dir::Right {
         monitors[app.selected_monitor].right = None;
         if monitors[app.selected_monitor].left.is_some() {
-            let difference = monitors[monitors[app.selected_monitor].left.unwrap()].position.0 - monitors[app.selected_monitor].position.0;
+            let difference = monitors[monitors[app.selected_monitor].left.unwrap()].position.0 - monitors[app.selected_monitor].displayed_resolution.0;
             shift_mons(monitors, monitors[app.selected_monitor].left.unwrap(), difference, false, Vec::new());
         }
         monitors[app.selected_monitor].left = None;
@@ -1106,7 +1106,7 @@ fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, 
         monitors[app.selected_monitor].down = None;
     }
     if monitors[pivot_monitor].position.1 > monitors[app.selected_monitor].position.1 {
-        let difference = monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].position.1;
+        let difference = monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].displayed_resolution.1;
         shift_mons(monitors, pivot_monitor, difference, true, Vec::new());
     }
     if vert_dir == Dir::Right {
