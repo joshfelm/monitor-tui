@@ -98,6 +98,42 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
 
                 f.render_widget(paragraph, popup_area);
 
+            } else if matches!(app.state, State::HelpPopup) {
+                // help window with commands
+                let help_popup_area = centered_rect(60, 20, size);
+                let commands = {[
+                    ("?", "help"),
+                    ("<Enter>", "Edit selected monitor information"),
+                    ("<Esc>", "Stop editing"),
+                    ("m", "Enter monitor mode"),
+                    ("r", "Reset to previously saved state (UNIMPLEMENTED)"),
+                    ("s", "Apply saved changes"),
+                    ("d", "Preview xrandr command"),
+                ]};
+
+                let info: Vec<Spans> = commands
+                    .iter()
+                    .map(|(cmd, desc)| {
+                        Spans::from(vec![
+                            Span::styled(
+                                format!("{}: {}", cmd, desc),
+                                    Style::default()
+                            )
+                        ])
+                    })
+                    .collect();
+
+                let info_block = Block::default()
+                    .title("Commands (Main Mode)")
+                    .borders(Borders::ALL)
+                    .style(Style::default().fg(Color::LightBlue));
+
+                let info_paragraph = Paragraph::new(info)
+                    .block(info_block)
+                    .style(Style::default().fg(Color::White))
+                    .wrap(tui::widgets::Wrap { trim: true });
+
+                f.render_widget(info_paragraph, help_popup_area);
             } else {
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
@@ -185,19 +221,25 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
 
         if let Event::Key(key) = event::read()? {
             match key.code {
+                // help
+                KeyCode::Char('?') => {
+                    if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
+                        app.update_state(State::HelpPopup);
+                    }
+                }
                 // quit
                 KeyCode::Char('q') => {
                     return Ok(());
                 }
                 // debug the command
                 KeyCode::Char('d') => {
-                    if !matches!(app.state, State::DebugPopup) {
+                    if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
                         app.update_state(State::DebugPopup);
                     }
                 }
                 // save: send to xrandr
                 KeyCode::Char('s') => {
-                    if !app.debug {
+                    if !app.debug && matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
                         let mut iterator = monitors.iter_mut();
                         let mut args: Vec<String> = Vec::new();
                         while let Some(element) = iterator.next() {
@@ -432,6 +474,9 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                         State::DebugPopup => {
                             app.update_state(app.previous_state);
                         }
+                        State::HelpPopup => {
+                            app.update_state(app.previous_state);
+                        }
                     }
                 }
                 // move
@@ -475,6 +520,9 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                             app.update_state(State::MenuSelect);
                         }
                         State::DebugPopup => {
+                            app.update_state(app.previous_state);
+                        }
+                        State::HelpPopup => {
                             app.update_state(app.previous_state);
                         }
                         _ => {}

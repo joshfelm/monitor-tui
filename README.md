@@ -15,7 +15,7 @@ Run with `cargo run -- -d` to enable debug mode. This enables a 3 monitor
 layout for testing purposes
 
 ## Todo
-- [ ] Help window
+- [x] Help window
 - [ ] Handle disconnected monitors
 - [x] Modify refresh rate
 - [x] Modify resolution

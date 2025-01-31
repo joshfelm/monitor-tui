@@ -24,6 +24,7 @@ pub enum State {
     MenuSelect,
     InfoEdit,
     DebugPopup,
+    HelpPopup,
 }
 
 #[derive(Debug, Clone, Copy)]
