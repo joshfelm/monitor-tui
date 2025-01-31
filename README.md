@@ -24,3 +24,5 @@ layout for testing purposes
 - [ ] Autorandr integration
 - [ ] Monitors.xml integration
 - [x] Add debug mode
+- [ ] Update TUI to ratatui (why did I choose TUI when it's not
+      maintained.....)
