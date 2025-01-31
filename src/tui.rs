@@ -5,6 +5,7 @@ use crate::Monitor;
 use crate::xrandr;
 
 use std::io;
+use std::cmp;
 use std::process::Command;
 
 use tui::widgets::canvas::Rectangle;
@@ -1106,7 +1107,7 @@ fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, 
         monitors[app.selected_monitor].down = None;
     }
     if monitors[pivot_monitor].position.1 > monitors[app.selected_monitor].position.1 {
-        let difference = monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].displayed_resolution.1;
+        let difference = monitors[pivot_monitor].position.1 - cmp::min(monitors[app.selected_monitor].position.1, monitors[pivot_monitor].position.1);
         shift_mons(monitors, pivot_monitor, difference, true, Vec::new());
     }
     if vert_dir == Dir::Right {
