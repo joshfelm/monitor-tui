@@ -252,3 +252,115 @@ pub fn monitor_proximity(monitors: &mut Vec<Monitor>) {
     }
 }
 
+pub fn traverse_monitors(monitors: &mut Vec<Monitor>, selected_monitor: usize, direction: Dir) -> bool {
+    let traverse_monitor: usize;
+    let mut traverse: bool = false;
+    match direction {
+        Dir::Right => {
+            let right_traverse: Option<usize>;
+            if monitors[selected_monitor].down.is_some() {
+                traverse_monitor = monitors[selected_monitor].down.unwrap();
+                right_traverse = monitors[traverse_monitor].right;
+                if right_traverse.is_some() {
+                    monitors[right_traverse.unwrap()].up = Some(selected_monitor);
+                    monitors[selected_monitor].down = right_traverse;
+                    monitors[selected_monitor].position.0 = monitors[right_traverse.unwrap()].position.0;
+                    monitors[selected_monitor].position.1 = monitors[right_traverse.unwrap()].position.1 - monitors[selected_monitor].displayed_resolution.1;
+                    monitors[traverse_monitor].up = None;
+                    traverse = true;
+                }
+            } else if monitors[selected_monitor].up.is_some() {
+                traverse_monitor = monitors[selected_monitor].up.unwrap();
+                right_traverse = monitors[traverse_monitor].right;
+                if right_traverse.is_some() {
+                    monitors[right_traverse.unwrap()].down = Some(selected_monitor);
+                    monitors[selected_monitor].up = right_traverse;
+                    monitors[selected_monitor].position.0 = monitors[right_traverse.unwrap()].position.0;
+                    monitors[selected_monitor].position.1 = monitors[right_traverse.unwrap()].position.1 + monitors[right_traverse.unwrap()].displayed_resolution.1;
+                    monitors[traverse_monitor].down = None;
+                    traverse = true;
+                }
+            }
+        }
+        Dir::Left => {
+            let left_traverse: Option<usize>;
+            if monitors[selected_monitor].down.is_some() {
+                traverse_monitor = monitors[selected_monitor].down.unwrap();
+                left_traverse = monitors[traverse_monitor].left;
+                if left_traverse.is_some() {
+                    monitors[left_traverse.unwrap()].up = Some(selected_monitor);
+                    monitors[selected_monitor].down = left_traverse;
+                    monitors[selected_monitor].position.0 = monitors[left_traverse.unwrap()].position.0;
+                    monitors[selected_monitor].position.1 = monitors[left_traverse.unwrap()].position.1 - monitors[selected_monitor].displayed_resolution.1;
+                    monitors[traverse_monitor].up = None;
+                    traverse = true;
+                }
+            } else if monitors[selected_monitor].up.is_some() {
+                traverse_monitor = monitors[selected_monitor].up.unwrap();
+                left_traverse = monitors[traverse_monitor].left;
+                if left_traverse.is_some() {
+                    monitors[left_traverse.unwrap()].down = Some(selected_monitor);
+                    monitors[selected_monitor].up = left_traverse;
+                    monitors[selected_monitor].position.0 = monitors[left_traverse.unwrap()].position.0;
+                    monitors[selected_monitor].position.1 = monitors[left_traverse.unwrap()].position.1 + monitors[left_traverse.unwrap()].displayed_resolution.1;
+                    monitors[traverse_monitor].down = None;
+                    traverse = true;
+                }
+            }
+        }
+        Dir::Up => {
+            let up_traverse;
+            if monitors[selected_monitor].right.is_some() {
+                traverse_monitor = monitors[selected_monitor].right.unwrap();
+                up_traverse = monitors[traverse_monitor].up;
+                if up_traverse.is_some() {
+                    monitors[up_traverse.unwrap()].left = Some(selected_monitor);
+                    monitors[selected_monitor].right = up_traverse;
+                    monitors[selected_monitor].position.1 = monitors[up_traverse.unwrap()].position.1;
+                    monitors[selected_monitor].position.0 = monitors[up_traverse.unwrap()].position.0 - monitors[selected_monitor].displayed_resolution.0;
+                    monitors[traverse_monitor].left = None;
+                    traverse = true;
+                }
+            } else if monitors[selected_monitor].left.is_some() {
+                traverse_monitor = monitors[selected_monitor].left.unwrap();
+                up_traverse = monitors[traverse_monitor].up;
+                if up_traverse.is_some() {
+                    monitors[up_traverse.unwrap()].right = Some(selected_monitor);
+                    monitors[selected_monitor].left = up_traverse;
+                    monitors[selected_monitor].position.1 = monitors[up_traverse.unwrap()].position.1;
+                    monitors[selected_monitor].position.0 = monitors[up_traverse.unwrap()].position.0 + monitors[up_traverse.unwrap()].displayed_resolution.0;
+                    monitors[traverse_monitor].right = None;
+                    traverse = true;
+                }
+            }
+        }
+        Dir::Down => {
+            let down_traverse;
+            if monitors[selected_monitor].right.is_some() {
+                traverse_monitor = monitors[selected_monitor].right.unwrap();
+                down_traverse = monitors[traverse_monitor].down;
+                if down_traverse.is_some() {
+                    monitors[down_traverse.unwrap()].left = Some(selected_monitor);
+                    monitors[selected_monitor].right = down_traverse;
+                    monitors[selected_monitor].position.1 = monitors[down_traverse.unwrap()].position.1;
+                    monitors[selected_monitor].position.0 = monitors[down_traverse.unwrap()].position.0 - monitors[selected_monitor].displayed_resolution.0;
+                    monitors[traverse_monitor].left = None;
+                    traverse = true;
+                }
+            } else if monitors[selected_monitor].left.is_some() {
+                traverse_monitor = monitors[selected_monitor].left.unwrap();
+                down_traverse = monitors[traverse_monitor].down;
+                if down_traverse.is_some() {
+                    monitors[down_traverse.unwrap()].right = Some(selected_monitor);
+                    monitors[selected_monitor].left = down_traverse;
+                    monitors[selected_monitor].position.1 = monitors[down_traverse.unwrap()].position.1;
+                    monitors[selected_monitor].position.0 = monitors[down_traverse.unwrap()].position.0 + monitors[down_traverse.unwrap()].displayed_resolution.0;
+                    monitors[traverse_monitor].right = None;
+                    traverse = true;
+                }
+            }
+        }
+
+    }
+    return traverse;
+}

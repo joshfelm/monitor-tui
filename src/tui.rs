@@ -246,16 +246,21 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                             let mut pivot_monitor: Option<usize> = None;
                             let mut vert_direction: Option<Dir> = None;
                             let mut swap: bool = false;
+                            let mut traverse: bool = false;
                             if (key.code == KeyCode::Char('l')) | (key.code == KeyCode::Right) {
                                 if monitors[app.selected_monitor].right.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].right.unwrap();
                                     swap = true;
+                                } else {
+                                    traverse = monitor::traverse_monitors(&mut monitors, app.selected_monitor, Dir::Right);
                                 }
                                 direction = Some(Dir::Right);
                             } else {
                                 if monitors[app.selected_monitor].left.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].left.unwrap();
                                     swap = true;
+                                } else {
+                                    traverse = monitor::traverse_monitors(&mut monitors, app.selected_monitor, Dir::Left);
                                 }
                                 direction = Some(Dir::Left);
                             }
@@ -263,7 +268,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                                 app.extra_entry = 0;
                                 monitor::swap_monitors(&mut monitors, app.current_monitor, app.selected_monitor, direction.unwrap(), app);
                                 app.current_monitor = app.selected_monitor;
-                            } else {
+                            } else if !traverse {
                                 //look for up or down
                                 if monitors[app.selected_monitor].up.is_some() {
                                     if direction == Some(Dir::Left) && monitors[monitors[app.selected_monitor].up.unwrap()].left.is_none()
@@ -325,16 +330,21 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                             let mut pivot_monitor: Option<usize> = None;
                             let mut vert_direction: Option<Dir> = None;
                             let mut swap: bool = false;
+                            let mut traverse: bool = false;
                             if (key.code == KeyCode::Char('j')) | (key.code == KeyCode::Down) {
                                 if monitors[app.selected_monitor].down.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].down.unwrap();
                                     swap = true;
+                                } else {
+                                    traverse = monitor::traverse_monitors(&mut monitors, app.selected_monitor, Dir::Down);
                                 }
                                 direction = Some(Dir::Down);
                             } else {
                                 if monitors[app.selected_monitor].up.is_some() {
                                     app.selected_monitor = monitors[app.selected_monitor].up.unwrap();
                                     swap = true;
+                                } else {
+                                    traverse = monitor::traverse_monitors(&mut monitors, app.selected_monitor, Dir::Up);
                                 }
                                 direction = Some(Dir::Up);
                             }
@@ -342,7 +352,7 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<mo
                                 app.extra_entry = 0;
                                 monitor::swap_monitors(&mut monitors, app.current_monitor, app.selected_monitor, direction.unwrap(), app);
                                 app.current_monitor = app.selected_monitor;
-                            } else {
+                            } else if !traverse {
                                 //look for the left or right
                                 if monitors[app.selected_monitor].left.is_some() {
                                     if direction == Some(Dir::Up) && monitors[monitors[app.selected_monitor].left.unwrap()].up.is_none()
