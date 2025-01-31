@@ -565,6 +565,8 @@ fn ui<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Vec<Mo
     }
 }
 
+
+// recalculate cardinal proximity
 pub fn monitor_proximity(monitors: &mut Vec<Monitor>) {
     for i in 0..monitors.len() {
         for j in 0..monitors.len() {
@@ -589,6 +591,7 @@ pub fn monitor_proximity(monitors: &mut Vec<Monitor>) {
     }
 }
 
+// Generate the spans to draw extra information (e.g. framerate)
 fn generate_extra_info(
     monitors: &Vec<Monitor>,
     app: App,
@@ -660,6 +663,7 @@ fn generate_extra_info(
     }
 }
 
+// Generate the spans from monitor info
 fn generate_monitor_info(
     monitors: &Vec<Monitor>,
     app: App
@@ -938,6 +942,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     horizontal_layout[1]
 }
 
+// draw monitors as defined
 fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, monitors: &[Monitor], app: App) {
     let total_width: f64 = monitors.iter().map(|m| m.position.0 + m.displayed_resolution.0 as i32).max().unwrap_or(0).into();
     let total_height: f64 = monitors.iter().map(|m| m.position.1 + m.displayed_resolution.1 as i32).max().unwrap_or(0).into();
@@ -1046,6 +1051,7 @@ fn swap_monitors(monitors: &mut Vec<Monitor>, current_monitor: usize, switching_
     }
 }
 
+// shift monitor specifically when resolution changes
 fn shift_res(monitors: &mut Vec<Monitor>, mon_index: usize, difference: (i32, i32)) {
     let current_monitor = monitors[mon_index].clone();
     for m in monitors {
@@ -1058,7 +1064,7 @@ fn shift_res(monitors: &mut Vec<Monitor>, mon_index: usize, difference: (i32, i3
     }
 }
 
-// shift monitor and recursively shift connected by a given amount
+// shift monitor and recursively shift connected monitors by a given amount
 fn shift_mons(monitors: &mut Vec<Monitor>, current_monitor: usize, difference: i32, vertical: bool, mut searched_mons: Vec<usize>) -> Vec<usize> {
     if !searched_mons.contains(&current_monitor) {
         if vertical {
@@ -1075,6 +1081,7 @@ fn shift_mons(monitors: &mut Vec<Monitor>, current_monitor: usize, difference: i
     return searched_mons;
 }
 
+// when moving up or down, and need to turn a horizontal stack into a vertical one
 fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_dir: Dir, app:App) {
     if dir == Dir::Left {
         monitors[app.selected_monitor].left = None;
