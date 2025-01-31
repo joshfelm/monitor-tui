@@ -1003,6 +1003,7 @@ fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, mo
     f.render_widget(canvas, area);
 }
 
+//swap two monitors
 fn swap_monitors(monitors: &mut Vec<Monitor>, current_monitor: usize, switching_monitor: usize, direction: Dir, app: App) {
     assert!(app.state == State::MonitorSwap, "Tried to swap monitors when not in monitor edit state, actual state: {:?}", app.state);
     let temp_monitor = monitors[switching_monitor].clone();
@@ -1030,6 +1031,19 @@ fn swap_monitors(monitors: &mut Vec<Monitor>, current_monitor: usize, switching_
 
     // update order
     monitors.swap(app.selected_monitor, app.current_monitor);
+
+    for i in 0..monitors.len() {
+        let right = monitors[i].right;
+        let down = monitors[i].down;
+        if let Some(right_index) = right {
+        let pos_x = monitors[i].position.0 + monitors[i].displayed_resolution.0;
+            monitors[right_index].position.0 = pos_x;
+        }
+        if let Some(down_index) = down {
+        let pos_y = monitors[i].position.1 + monitors[i].displayed_resolution.1;
+            monitors[down_index].position.1 = pos_y;
+        }
+    }
 }
 
 fn shift_res(monitors: &mut Vec<Monitor>, mon_index: usize, difference: (i32, i32)) {
@@ -1068,16 +1082,16 @@ fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_d
             let difference = monitors[monitors[app.selected_monitor].right.unwrap()].position.0 - monitors[app.selected_monitor].displayed_resolution.0;
             shift_mons(monitors, monitors[app.selected_monitor].right.unwrap(), difference, false, Vec::new());
         }
-        monitors[app.selected_monitor].right = None;
         monitors[pivot_monitor].right = monitors[app.selected_monitor].right;
+        monitors[app.selected_monitor].right = None;
     } else if dir == Dir::Right {
         monitors[app.selected_monitor].right = None;
         if monitors[app.selected_monitor].left.is_some() {
             let difference = monitors[monitors[app.selected_monitor].left.unwrap()].position.0 - monitors[app.selected_monitor].displayed_resolution.0;
             shift_mons(monitors, monitors[app.selected_monitor].left.unwrap(), difference, false, Vec::new());
         }
-        monitors[app.selected_monitor].left = None;
         monitors[pivot_monitor].left = monitors[app.selected_monitor].left;
+        monitors[app.selected_monitor].left = None;
     }
     if monitors[pivot_monitor].position.0 > monitors[app.selected_monitor].position.0 {
         let difference = monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].position.0;
@@ -1096,8 +1110,22 @@ fn vert_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_d
         monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0, monitors[pivot_monitor].position.1 - monitors[app.selected_monitor].displayed_resolution.1);
     }
     monitor_proximity(monitors);
+
+    for i in 0..monitors.len() {
+        let right = monitors[i].right;
+        let down = monitors[i].down;
+        if let Some(right_index) = right {
+            let pos_x = monitors[i].position.0 + monitors[i].displayed_resolution.0;
+            monitors[right_index].position.0 = pos_x;
+        }
+        if let Some(down_index) = down {
+            let pos_y = monitors[i].position.1 + monitors[i].displayed_resolution.1;
+            monitors[down_index].position.1 = pos_y;
+        }
+    }
 }
 
+// when moving left or right, and need to turn a vertical stack into a horizontal one
 fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, vert_dir: Dir, app:App) {
     if dir == Dir::Up {
         monitors[pivot_monitor].down = monitors[app.selected_monitor].down;
@@ -1112,6 +1140,11 @@ fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, 
     }
     if vert_dir == Dir::Right {
         monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 + monitors[pivot_monitor].displayed_resolution.0, monitors[pivot_monitor].position.1);
+        let left = monitors[app.selected_monitor].left;
+        if left.is_some() {
+            monitors[pivot_monitor].left = left;
+            monitors[left.unwrap()].right = Some(pivot_monitor);
+        }
         monitors[pivot_monitor].right = Some(app.selected_monitor);
         monitors[app.selected_monitor].left = Some(pivot_monitor);
     } else if vert_dir == Dir::Left {
@@ -1121,8 +1154,27 @@ fn horizontal_push(monitors: &mut Vec<Monitor>, pivot_monitor: usize, dir: Dir, 
             shift_mons(monitors, pivot_monitor, difference, false, Vec::new());
         }
         monitors[app.selected_monitor].position = (monitors[pivot_monitor].position.0 - monitors[app.selected_monitor].displayed_resolution.0, monitors[pivot_monitor].position.1);
+        let right = monitors[app.selected_monitor].right;
+        if right.is_some() {
+            monitors[pivot_monitor].right = monitors[app.selected_monitor].right;
+            monitors[right.unwrap()].left = Some(pivot_monitor);
+        }
         monitors[pivot_monitor].left = Some(app.selected_monitor);
         monitors[app.selected_monitor].right = Some(pivot_monitor);
+    }
+    monitor_proximity(monitors);
+
+    for i in 0..monitors.len() {
+        let right = monitors[i].right;
+        let down = monitors[i].down;
+        if let Some(right_index) = right {
+        let pos_x = monitors[i].position.0 + monitors[i].displayed_resolution.0;
+            monitors[right_index].position.0 = pos_x;
+        }
+        if let Some(down_index) = down {
+        let pos_y = monitors[i].position.1 + monitors[i].displayed_resolution.1;
+            monitors[down_index].position.1 = pos_y;
+        }
     }
 }
 
