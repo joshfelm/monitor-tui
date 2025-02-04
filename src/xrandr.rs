@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::process::Command;
 use std::io;
 
-use crate::monitor::Monitor;
+use crate::monitor::*;
 use crate::debug::xrandr_debug::XRANDR_OUTPUT;
 
 // get initial monitor information from xrandr
-pub fn get_monitor_info(debug: bool) -> io::Result<Vec<Monitor>> {
+pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
     let output = Command::new("xrandr")
         .arg("--query")
         .output()?;
@@ -19,7 +19,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Vec<Monitor>> {
 
     let mut selected_framerate = 0.0;
     let mut selected_resolution = (0, 0);
-    let mut monitors: Vec<Monitor> = Vec::new();
+    let mut monitors: Monitors = Vec::new();
     let mut current_monitor: Option<Monitor> = None;
     let mut current_resolutions: HashMap<(i32, i32), Vec<f32>> = HashMap::new();  // HashMap to store resolutions and their framerates
 

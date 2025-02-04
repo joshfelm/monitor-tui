@@ -5,11 +5,13 @@ pub mod tui;
 
 pub use monitor::Monitor;
 
+use std::process::Output;
+
 // shared structures
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Dir {
     Left,
     Right,
@@ -27,22 +29,22 @@ pub enum State {
     HelpPopup,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Copy, Clone)]
 pub struct App {
     state: State,
     previous_state: State,
-    selected_monitor: usize,
+    selected_idx: usize,
     current_monitor: usize,
     focused_window: FocusedWindow,
     menu_entry: MenuEntry,
     extra_entry: usize,
-    debug: bool
+    debug: bool,
 }
 
 impl App {
     fn new(dbg: bool) -> App {
         App {
-            selected_monitor: 0,
+            selected_idx: 0,
             current_monitor: 0,
             focused_window: FocusedWindow::MonitorList,
             state: State::MonitorEdit,
