@@ -5,8 +5,6 @@ pub mod tui;
 
 pub use monitor::Monitor;
 
-use std::process::Output;
-
 // shared structures
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -27,27 +25,28 @@ pub enum State {
     InfoEdit,
     DebugPopup,
     HelpPopup,
+    Quit,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct App {
-    state: State,
-    previous_state: State,
-    selected_idx: usize,
-    current_monitor: usize,
-    focused_window: FocusedWindow,
-    menu_entry: MenuEntry,
-    extra_entry: usize,
-    debug: bool,
+    pub state: State,
+    pub previous_state: State,
+    pub selected_idx: usize,
+    pub current_idx: usize,
+    pub focused_window: FocusedWindow,
+    pub menu_entry: MenuEntry,
+    pub extra_entry: usize,
+    pub debug: bool,
 }
 
 impl App {
-    fn new(dbg: bool) -> App {
+    pub fn new(start_state: State, dbg: bool) -> App {
         App {
             selected_idx: 0,
-            current_monitor: 0,
+            current_idx: 0,
             focused_window: FocusedWindow::MonitorList,
-            state: State::MonitorEdit,
+            state: start_state,
             previous_state: State::MonitorEdit,
 
             menu_entry: MenuEntry::Name,
@@ -96,5 +95,5 @@ pub enum MenuEntry{
     Right,
     Resolutions
 }
-const MAXMENU: u8 = 11; // update this when adding to menu
+const MAXMENU: u8 = 10; // update this when adding to menu
 
