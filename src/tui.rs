@@ -120,7 +120,7 @@ fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors:
                 }
                 // set primary
                 KeyCode::Char('p') => {
-                    if (matches!(app.state, State::MonitorEdit) || matches!(app.state, State::MonitorSwap)) {
+                    if matches!(app.state, State::MonitorEdit | State::MonitorSwap) {
                         let mut iterator = monitors.iter_mut();
                         while let Some(element) = iterator.next() {
                             element.is_primary = false;
