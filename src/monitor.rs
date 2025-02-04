@@ -98,9 +98,10 @@ pub fn swap_monitors(
     monitors[current_idx].down = temp_monitor.down;
 
     // update order
-    monitors.swap(app.selected_idx, app.current_monitor);
+    monitors.swap(app.selected_idx, app.current_idx);
 
     update_neighbor_positions(monitors);
+
 }
 
 pub fn update_neighbor_positions(monitors: &mut Monitors) {
@@ -110,10 +111,12 @@ pub fn update_neighbor_positions(monitors: &mut Monitors) {
         if let Some(right_index) = right {
             let pos_x = monitors[i].position.0 + monitors[i].displayed_resolution.0;
             monitors[right_index].position.0 = pos_x;
+            monitors[right_index].position.1 = monitors[i].position.1;
         }
         if let Some(down_index) = down {
             let pos_y = monitors[i].position.1 + monitors[i].displayed_resolution.1;
             monitors[down_index].position.1 = pos_y;
+            monitors[down_index].position.0 = monitors[i].position.0;
         }
     }
 }
@@ -212,10 +215,9 @@ pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert
     }
     if vert_dir == Dir::Right {
         monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 + monitors[pivot_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
-        let left = monitors[app.selected_idx].left;
-        if left.is_some() {
-            monitors[pivot_idx].left = left;
-            monitors[left.unwrap()].right = Some(pivot_idx);
+        if let Some(left) = monitors[app.selected_idx].left {
+            monitors[pivot_idx].left = Some(left);
+            monitors[left].right = Some(pivot_idx);
         }
         monitors[pivot_idx].right = Some(app.selected_idx);
         monitors[app.selected_idx].left = Some(pivot_idx);
@@ -234,7 +236,6 @@ pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert
         monitors[pivot_idx].left = Some(app.selected_idx);
         monitors[app.selected_idx].right = Some(pivot_idx);
     }
-    monitor_proximity(monitors);
 
     update_neighbor_positions(monitors);
 }

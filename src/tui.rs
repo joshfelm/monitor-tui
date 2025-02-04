@@ -24,140 +24,17 @@ use crossterm::{
 
 fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Monitors, debug: bool) -> io::Result<()> {
     // initial setup
-    let mut app = App::new(debug);
+    let mut app = App::new(State::MonitorEdit, debug);
 
     loop {
         terminal.draw(|f| render_ui(f, &app, &monitors))?;
 
         if let Event::Key(key) = event::read()? {
-            match key.code {
-                // help
-                KeyCode::Char('?') => {
-                    if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
-                        app.update_state(State::HelpPopup);
-                    }
-                }
-                // debug the command
-                KeyCode::Char('d') => {
-                    if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
-                        app.update_state(State::DebugPopup);
-                    }
-                }
-                KeyCode::Char('q') => { return Ok(()); }
-                // save: send to xrandr
-                KeyCode::Char('s') => { send_to_xrandr(&monitors, app); }
-                // horizontal movement
-                KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
-                    let is_right = matches!(key.code, KeyCode::Char('l') | KeyCode::Right);
-                    let direction = if is_right { Dir::Right } else { Dir::Left };
+            handle_key_press(key.code, &mut monitors, &mut app);
+        }
 
-                    match app.state {
-                        State::MonitorEdit => handle_monitor_edit(&mut app, &mut monitors, direction),
-                        State::MonitorSwap => handle_monitor_swap(&mut app, &mut monitors, direction),
-                        State::MenuSelect if matches!(app.menu_entry, MenuEntry::Scale) => handle_menu_scale(&mut app, &mut monitors, direction),
-                        _ => {} // Unimplemented
-                    }
-                }
-
-                // vertical movement
-                KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
-                    let is_down = matches!(key.code, KeyCode::Char('j') | KeyCode::Down);
-                    let direction = if is_down { Dir::Down } else { Dir::Up };
-
-                    match app.state {
-                        State::MonitorEdit => handle_monitor_edit(&mut app, &mut monitors, direction),
-                        State::MonitorSwap => handle_monitor_swap(&mut app, &mut monitors, direction),
-                        State::MenuSelect => handle_menu_select(&mut app, is_down),
-                        State::InfoEdit => handle_info_edit(&mut app, &monitors, is_down),
-                        _ => {} // Unimplemented
-                    }
-                }
-                // selection
-                KeyCode::Enter => {
-                    match app.state {
-                        State::MonitorEdit | State::MonitorSwap => {
-                            if monitors[app.current_monitor].is_selected && matches!(app.state, State::MonitorEdit) {
-                                monitors[app.current_monitor].is_selected = false;
-                            } else {
-                                app.current_monitor = app.selected_idx;
-                                monitors[app.selected_idx].is_selected = true;
-                            }
-                            app.update_state(State::MenuSelect);
-                            app.focused_window = FocusedWindow::MonitorInfo;
-                        }
-                        State::MenuSelect => { if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); } }
-                        State::InfoEdit => {
-                            assert!(matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
-                            if matches!(app.menu_entry, MenuEntry::Resolution) {
-                                let old_res = monitors[app.selected_idx].displayed_resolution;
-                                let new_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
-                                let difference = (new_res.0 - old_res.0, new_res.1 - old_res.1);
-                                shift_res(&mut monitors, app.current_monitor, difference);
-
-                                let updated_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
-                                monitors[app.selected_idx].resolution = *updated_res;
-                                let updated_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
-                                monitors[app.selected_idx].displayed_resolution = *updated_res;
-                                monitors[app.selected_idx].set_framerate(0);
-                                monitors[app.selected_idx].scale = 1.0;
-                            } else {
-                                monitors[app.selected_idx].set_framerate(app.extra_entry);
-                            }
-                        }
-                        State::DebugPopup | State::HelpPopup => { app.update_state(app.previous_state); }
-                    }
-                }
-                // move
-                KeyCode::Char('m') => {
-                    if matches!(app.state, State::MonitorEdit | State::MenuSelect) {
-                        if matches!(app.state, State::MonitorEdit) {
-                            monitors[app.selected_idx].is_selected = true;
-                            app.current_monitor = app.selected_idx;
-                        }
-                        app.update_state(State::MonitorSwap);
-                        app.focused_window = FocusedWindow::MonitorList;
-                    }
-                }
-                // set primary
-                KeyCode::Char('p') => {
-                    if (matches!(app.state, State::MonitorEdit) || matches!(app.state, State::MonitorSwap)) {
-                        let mut iterator = monitors.iter_mut();
-                        while let Some(element) = iterator.next() {
-                            element.is_primary = false;
-                        }
-                        monitors[app.selected_idx].is_primary = true;
-                    }
-                }
-                // Deselect
-                KeyCode::Esc => {
-                    match app.state{
-                        State::MenuSelect => {
-                            monitors[app.current_monitor].is_selected = false;
-                            app.update_state(State::MonitorEdit);
-                            app.focused_window = FocusedWindow::MonitorList;
-                        }
-                        State::MonitorSwap => {
-                            app.focused_window = FocusedWindow::MonitorInfo;
-                            if matches!(app.previous_state, State::MonitorEdit) {
-                                monitors[app.current_monitor].is_selected = false;
-                                app.focused_window = FocusedWindow::MonitorList;
-                            }
-                            app.update_state(app.previous_state);
-                        }
-                        State::InfoEdit => {
-                            app.update_state(State::MenuSelect);
-                        }
-                        State::DebugPopup => {
-                            app.update_state(app.previous_state);
-                        }
-                        State::HelpPopup => {
-                            app.update_state(app.previous_state);
-                        }
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
+        if matches!(app.state, State::Quit) {
+            return Ok(());
         }
     }
 }
@@ -363,6 +240,138 @@ fn render_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitors: &M
     }
 }
 
+pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut App) {
+    match key {
+        // help
+        KeyCode::Char('?') => {
+            if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
+                app.update_state(State::HelpPopup);
+            }
+        }
+        // debug the command
+        KeyCode::Char('d') => {
+            if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
+                app.update_state(State::DebugPopup);
+            }
+        }
+        KeyCode::Char('q') => { app.update_state(State::Quit) }
+        // save: send to xrandr
+        KeyCode::Char('s') => { send_to_xrandr(&monitors, *app); }
+        // horizontal movement
+        KeyCode::Char('h') | KeyCode::Char('l') | KeyCode::Left | KeyCode::Right => {
+            let is_right = matches!(key, KeyCode::Char('l') | KeyCode::Right);
+            let direction = if is_right { Dir::Right } else { Dir::Left };
+
+            match app.state {
+                State::MonitorEdit => handle_monitor_edit(&mut app, &mut monitors, direction),
+                State::MonitorSwap => handle_monitor_swap(&mut app, &mut monitors, direction),
+                State::MenuSelect if matches!(app.menu_entry, MenuEntry::Scale) => handle_menu_scale(&mut app, &mut monitors, direction),
+                _ => {} // Unimplemented
+            }
+        }
+
+        // vertical movement
+        KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
+            let is_down = matches!(key, KeyCode::Char('j') | KeyCode::Down);
+            let direction = if is_down { Dir::Down } else { Dir::Up };
+
+            match app.state {
+                State::MonitorEdit => handle_monitor_edit(&mut app, &mut monitors, direction),
+                State::MonitorSwap => handle_monitor_swap(&mut app, &mut monitors, direction),
+                State::MenuSelect => handle_menu_select(&mut app, is_down),
+                State::InfoEdit => handle_info_edit(&mut app, &monitors, is_down),
+                _ => {} // Unimplemented
+            }
+        }
+        // selection
+        KeyCode::Enter => {
+            match app.state {
+                State::MonitorEdit => {
+                    if monitors[app.current_idx].is_selected && matches!(app.state, State::MonitorEdit) {
+                        monitors[app.current_idx].is_selected = false;
+                    } else {
+                        app.current_idx = app.selected_idx;
+                        monitors[app.selected_idx].is_selected = true;
+                    }
+                    app.update_state(State::MenuSelect);
+                    app.focused_window = FocusedWindow::MonitorInfo;
+                }
+                State::MonitorSwap => { app.update_state(app.previous_state); }
+                State::MenuSelect => { if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); } }
+                State::InfoEdit => {
+                    assert!(matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
+                    if matches!(app.menu_entry, MenuEntry::Resolution) {
+                        let old_res = monitors[app.selected_idx].displayed_resolution;
+                        let new_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
+                        let difference = (new_res.0 - old_res.0, new_res.1 - old_res.1);
+                        shift_res(&mut monitors, app.current_idx, difference);
+
+                        let updated_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
+                        monitors[app.selected_idx].resolution = *updated_res;
+                        let updated_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
+                        monitors[app.selected_idx].displayed_resolution = *updated_res;
+                        monitors[app.selected_idx].set_framerate(0);
+                        monitors[app.selected_idx].scale = 1.0;
+                    } else {
+                        monitors[app.selected_idx].set_framerate(app.extra_entry);
+                    }
+                }
+                State::DebugPopup | State::HelpPopup => { app.update_state(app.previous_state); }
+                _ => {} //unimplemented
+            }
+        }
+        // move
+        KeyCode::Char('m') => {
+            if matches!(app.state, State::MonitorEdit | State::MenuSelect) {
+                if matches!(app.state, State::MonitorEdit) {
+                    monitors[app.selected_idx].is_selected = true;
+                    app.current_idx = app.selected_idx;
+                }
+                app.update_state(State::MonitorSwap);
+                app.focused_window = FocusedWindow::MonitorList;
+            }
+        }
+        // set primary
+        KeyCode::Char('p') => {
+            if (matches!(app.state, State::MonitorEdit) || matches!(app.state, State::MonitorSwap)) {
+                let mut iterator = monitors.iter_mut();
+                while let Some(element) = iterator.next() {
+                    element.is_primary = false;
+                }
+                monitors[app.selected_idx].is_primary = true;
+            }
+        }
+        // Deselect
+        KeyCode::Esc => {
+            match app.state{
+                State::MenuSelect => {
+                    monitors[app.current_idx].is_selected = false;
+                    app.update_state(State::MonitorEdit);
+                    app.focused_window = FocusedWindow::MonitorList;
+                }
+                State::MonitorSwap => {
+                    app.focused_window = FocusedWindow::MonitorInfo;
+                    if matches!(app.previous_state, State::MonitorEdit) {
+                        monitors[app.current_idx].is_selected = false;
+                        app.focused_window = FocusedWindow::MonitorList;
+                    }
+                    app.update_state(app.previous_state);
+                }
+                State::InfoEdit => {
+                    app.update_state(State::MenuSelect);
+                }
+                State::DebugPopup => {
+                    app.update_state(app.previous_state);
+                }
+                State::HelpPopup => {
+                    app.update_state(app.previous_state);
+                }
+                _ => {}
+            }
+        }
+        _ => {}
+    }
+}
 
 // helper functions
 fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
@@ -371,8 +380,8 @@ fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
 
         if matches!(app.state, State::MonitorSwap) {
             app.extra_entry = 0;
-            swap_monitors(monitors, app.current_monitor, new_idx, direction, *app);
-            app.current_monitor = new_idx;
+            swap_monitors(monitors, app.current_idx, new_idx, direction, *app);
+            app.current_idx = new_idx;
         }
     }
 }
@@ -390,8 +399,8 @@ fn handle_monitor_swap(app: &mut App, monitors: &mut Monitors, direction: Dir) {
 
     if swap {
         app.extra_entry = 0;
-        swap_monitors(monitors, app.current_monitor, app.selected_idx, direction, *app);
-        app.current_monitor = app.selected_idx;
+        swap_monitors(monitors, app.current_idx, app.selected_idx, direction, *app);
+        app.current_idx = app.selected_idx;
     } else if !traverse {
         match direction {
             Dir::Left | Dir::Right => {
@@ -413,7 +422,7 @@ fn handle_menu_scale(app: &mut App, monitors: &mut Monitors, direction: Dir) {
     monitors[app.selected_idx].scale += scale_delta;
 
     let difference = monitors[app.selected_idx].get_res_difference();
-    shift_res(monitors, app.current_monitor, difference);
+    shift_res(monitors, app.current_idx, difference);
     monitors[app.selected_idx].update_scale();
 }
 
@@ -438,7 +447,7 @@ fn handle_info_edit(app: &mut App, monitors: &Monitors, is_down: bool) {
             .get(&monitors[app.selected_idx].resolution)
             .expect("No available framerates")
             .len()
-            - 1
+        - 1
     } else {
         monitors[app.selected_idx].available_resolutions.keys().len() - 1
     };
@@ -455,14 +464,14 @@ fn handle_info_edit(app: &mut App, monitors: &Monitors, is_down: bool) {
 fn find_horizontal_pivot(monitors: &Monitors, idx: usize, direction: Dir) -> Option<(usize, Dir)> {
     if let Some(left) = monitors[idx].left {
         if direction == Dir::Up && monitors[left].up.is_none()
-            || direction == Dir::Down && monitors[left].down.is_none()
+        || direction == Dir::Down && monitors[left].down.is_none()
         {
             return Some((left, Dir::Left));
         }
     }
     if let Some(right) = monitors[idx].right {
         if direction == Dir::Up && monitors[right].up.is_none()
-            || direction == Dir::Down && monitors[right].down.is_none()
+        || direction == Dir::Down && monitors[right].down.is_none()
         {
             return Some((right, Dir::Right));
         }
@@ -473,14 +482,14 @@ fn find_horizontal_pivot(monitors: &Monitors, idx: usize, direction: Dir) -> Opt
 fn find_vertical_pivot(monitors: &Monitors, idx: usize, direction: Dir) -> Option<(usize, Dir)> {
     if let Some(up) = monitors[idx].up {
         if direction == Dir::Left && monitors[up].left.is_none()
-            || direction == Dir::Right && monitors[up].right.is_none()
+        || direction == Dir::Right && monitors[up].right.is_none()
         {
             return Some((up, Dir::Up));
         }
     }
     if let Some(down) = monitors[idx].down {
         if direction == Dir::Left && monitors[down].left.is_none()
-            || direction == Dir::Right && monitors[down].right.is_none()
+        || direction == Dir::Right && monitors[down].right.is_none()
         {
             return Some((down, Dir::Down));
         }
@@ -535,8 +544,8 @@ fn generate_extra_info(
                                     Style::default()
                                         .add_modifier(Modifier::BOLD)
                                         .fg(if matches!(app.state, State::InfoEdit) {
-                                                Color::Yellow
-                                            } else {
+                                            Color::Yellow
+                                        } else {
                                                 Color::White
                                             }
                                         )
@@ -564,8 +573,8 @@ fn generate_extra_info(
                                     Style::default()
                                         .add_modifier(Modifier::BOLD)
                                         .fg(if matches!(app.state, State::InfoEdit) {
-                                                Color::Yellow
-                                            } else {
+                                            Color::Yellow
+                                        } else {
                                                 Color::White
                                             }
                                         )
@@ -687,7 +696,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
                 Constraint::Percentage(percent_y),
                 Constraint::Percentage((100 - percent_y) / 2),
             ]
-            .as_ref(),
+                .as_ref(),
         )
         .split(r);
 
@@ -699,7 +708,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
                 Constraint::Percentage(percent_x),
                 Constraint::Percentage((100 - percent_x) / 2),
             ]
-            .as_ref(),
+                .as_ref(),
         )
         .split(popup_layout[1]);
 
