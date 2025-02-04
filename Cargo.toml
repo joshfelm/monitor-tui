@@ -1,5 +1,5 @@
 [package]
-name = "monitor-tui"
+name = "monitor_tui"
 description = "A terminal user interface for organising monitors"
 homepage = "https://github.com/joshfelm/monitor-tui"
 documentation = "https://github.com/joshfelm/monitor-tui"
@@ -15,3 +15,7 @@ crossterm = "0.26"
 num-traits = "0.2"
 num-derive = "0.4"
 itertools = "0.10"
+
+[lib]
+name = "monitor_tui"
+path = "src/lib.rs"
