@@ -1,21 +1,20 @@
-extern crate monitor_tui;
-
 #[cfg(test)]
 mod tests {
     use crossterm::event::KeyCode;
-    use monitor_tui::*;
-    use monitor_tui::monitor::*;
-    use monitor_tui::tui::*;
+    use crate::*;
+    use crate::monitor::*;
+    use crate::xrandr::*;
+    use crate::tui::*;
 
     #[test]
     // test menu navigation
     fn test_update_menu_left() {
         let mut app = App::new(State::MonitorEdit, true);
-        let mut monitors = monitor_tui::xrandr::get_monitor_info(true).unwrap();
+        let mut monitors = get_monitor_info(true).unwrap();
         monitor_proximity(&mut monitors);
 
         assert_eq!(app.current_idx, 0);
-        assert_eq!(app.state, monitor_tui::State::MonitorEdit);
+        assert_eq!(app.state, State::MonitorEdit);
 
         handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app);
 
@@ -26,7 +25,7 @@ mod tests {
     #[test]
     fn test_update_menu_right() {
         let mut app = App::new(State::MonitorEdit, true);
-        let mut monitors = monitor_tui::xrandr::get_monitor_info(true).unwrap();
+        let mut monitors = get_monitor_info(true).unwrap();
         monitor_proximity(&mut monitors);
 
         handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app);
@@ -38,7 +37,7 @@ mod tests {
     #[test]
     fn test_states() {
         let mut app = App::new(State::MonitorEdit, true);
-        let mut monitors = monitor_tui::xrandr::get_monitor_info(true).unwrap();
+        let mut monitors = get_monitor_info(true).unwrap();
         monitor_proximity(&mut monitors);
 
         assert_eq!(app.state, State::MonitorEdit);
@@ -78,7 +77,7 @@ mod tests {
     #[test]
     fn test_menu_navigation() {
         let mut app = App::new(State::MenuSelect, true);
-        let mut monitors = monitor_tui::xrandr::get_monitor_info(true).unwrap();
+        let mut monitors = get_monitor_info(true).unwrap();
         monitor_proximity(&mut monitors);
 
         assert_eq!(app.menu_entry, MenuEntry::Name);

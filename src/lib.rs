@@ -3,6 +3,9 @@ pub mod xrandr;
 pub mod debug;
 pub mod tui;
 
+#[cfg(test)]
+mod tests;
+
 pub use monitor::Monitor;
 
 // shared structures

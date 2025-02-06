@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{App, Dir, State};
+use crate::{App, Dir};
 use std::cmp;
 
 #[derive(Clone, PartialEq)]
@@ -58,14 +58,7 @@ pub fn swap_monitors(
     current_idx: usize,
     switch_idx: usize,
     direction: Dir,
-    app: App
 ) {
-    assert!(
-        app.state == State::MonitorSwap,
-        "Tried to swap monitors when not in monitor edit state, actual state: {:?}",
-        app.state
-    );
-
     let temp_monitor = monitors[switch_idx].clone();
 
     match direction {
@@ -98,10 +91,9 @@ pub fn swap_monitors(
     monitors[current_idx].down = temp_monitor.down;
 
     // update order
-    monitors.swap(app.selected_idx, app.current_idx);
+    monitors.swap(switch_idx, current_idx);
 
     update_neighbor_positions(monitors);
-
 }
 
 pub fn update_neighbor_positions(monitors: &mut Monitors) {

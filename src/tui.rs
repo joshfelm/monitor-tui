@@ -296,7 +296,14 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                     app.update_state(State::MenuSelect);
                     app.focused_window = FocusedWindow::MonitorInfo;
                 }
-                State::MonitorSwap => { app.update_state(app.previous_state); }
+                State::MonitorSwap => {
+                    app.focused_window = FocusedWindow::MonitorInfo;
+                    if matches!(app.previous_state, State::MonitorEdit) {
+                        monitors[app.current_idx].is_selected = false;
+                        app.focused_window = FocusedWindow::MonitorList;
+                    }
+                    app.update_state(app.previous_state);
+                }
                 State::MenuSelect => { if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); } }
                 State::InfoEdit => {
                     assert!(matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
@@ -380,7 +387,7 @@ fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
 
         if matches!(app.state, State::MonitorSwap) {
             app.extra_entry = 0;
-            swap_monitors(monitors, app.current_idx, new_idx, direction, *app);
+            swap_monitors(monitors, app.current_idx, new_idx, direction);
             app.current_idx = new_idx;
         }
     }
@@ -399,7 +406,7 @@ fn handle_monitor_swap(app: &mut App, monitors: &mut Monitors, direction: Dir) {
 
     if swap {
         app.extra_entry = 0;
-        swap_monitors(monitors, app.current_idx, app.selected_idx, direction, *app);
+        swap_monitors(monitors, app.current_idx, app.selected_idx, direction);
         app.current_idx = app.selected_idx;
     } else if !traverse {
         match direction {
