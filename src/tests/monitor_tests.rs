@@ -151,6 +151,27 @@ mod tests {
         assert_eq!(monitors[2].position, (2560, 0));
     }
 
+    #[test]
+    fn vert_push_with_below() {
+        let mut app = App::new(State::MonitorSwap, true);
+        let mut monitors = get_monitor_info(true).unwrap();
+
+        monitors[0].position = (1920,0);
+        monitors[1].position = (0,0);
+        monitors[2].position = (1920,1440);
+        monitor_proximity(&mut monitors);
+
+        app.selected_idx = 0;
+        app.current_idx = 2;
+        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app);
+
+        assert_eq!(monitors[0].name, "HDMI-1");
+        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[0].position, (0,0));
+        assert_eq!(monitors[1].position, (0,1440));
+        assert_eq!(monitors[2].position, (1920,1440));
+    }
 
     #[test]
     fn vert_triangle_down_position() {
@@ -384,5 +405,24 @@ mod tests {
         assert_eq!(monitors[1].position, (0,1080));
         assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[2].position, (2560,0));
+    }
+
+    #[test]
+    fn swap_up_with_left() {
+        let mut monitors = get_monitor_info(true).unwrap();
+
+        monitors[0].position = (1920,1080);
+        monitors[1].position = (0,0);
+        monitors[2].position = (1920,0);
+        monitor_proximity(&mut monitors);
+
+        swap_monitors(&mut monitors, 0, 2, Dir::Up);
+
+        assert_eq!(monitors[0].name, "DP-2");
+        assert_eq!(monitors[0].position, (1920,1440));
+        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[1].position, (0,0));
+        assert_eq!(monitors[2].name, "HDMI-1");
+        assert_eq!(monitors[2].position, (1920,0));
     }
 }
