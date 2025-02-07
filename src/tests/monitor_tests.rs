@@ -283,12 +283,12 @@ mod tests {
 
         swap_monitors(&mut monitors, 0, 2, Dir::Down);
 
-        assert_eq!(monitors[0].position, (1920,0));
         assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[1].position, (0,1440));
+        assert_eq!(monitors[0].position, (1920,0));
         assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[2].position, (1920,1440));
+        assert_eq!(monitors[1].position, (0,1080));
         assert_eq!(monitors[2].name, "HDMI-1");
+        assert_eq!(monitors[2].position, (1920,1080));
     }
 
     #[test]
@@ -346,5 +346,43 @@ mod tests {
         assert_eq!(monitors[2].name, "HDMI-1");
         assert_eq!(monitors[1].position, (0,1080));
         assert_eq!(monitors[1].name, "DP-1");
+    }
+
+    #[test]
+    fn swap_left_with_above() {
+        let mut monitors = get_monitor_info(true).unwrap();
+
+        monitors[0].position = (1920,1080);
+        monitors[1].position = (0,1080);
+        monitors[2].position = (1920,0);
+        monitor_proximity(&mut monitors);
+
+        swap_monitors(&mut monitors, 0, 1, Dir::Left);
+
+        assert_eq!(monitors[0].name, "DP-1");
+        assert_eq!(monitors[0].position, (2560,1080));
+        assert_eq!(monitors[1].name, "HDMI-1");
+        assert_eq!(monitors[1].position, (0,1080));
+        assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[2].position, (2560,0));
+    }
+
+    #[test]
+    fn swap_right_with_above() {
+        let mut monitors = get_monitor_info(true).unwrap();
+
+        monitors[0].position = (1920,1080);
+        monitors[1].position = (0,1080);
+        monitors[2].position = (1920,0);
+        monitor_proximity(&mut monitors);
+
+        swap_monitors(&mut monitors, 1, 0, Dir::Right);
+
+        assert_eq!(monitors[0].name, "DP-1");
+        assert_eq!(monitors[0].position, (2560,1080));
+        assert_eq!(monitors[1].name, "HDMI-1");
+        assert_eq!(monitors[1].position, (0,1080));
+        assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[2].position, (2560,0));
     }
 }
