@@ -119,15 +119,15 @@ mod tests {
         app.selected_idx = 1;
 
         handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app);
+        assert_eq!(monitors[0].name, "HDMI-1");
         assert_eq!(monitors[0].resolution, (2560, 1440));
         assert_eq!(monitors[0].position, (0, 1080));
-        assert_eq!(monitors[0].name, "HDMI-1");
+        assert_eq!(monitors[1].name, "DP-1");
         assert_eq!(monitors[1].resolution, (1920, 1080));
         assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[2].resolution, (1920, 1080));
         assert_eq!(monitors[2].position, (2560, 1080));
-        assert_eq!(monitors[2].name, "DP-2");
     }
 
     #[test]
@@ -140,15 +140,15 @@ mod tests {
         app.selected_idx = 1;
 
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app);
+        assert_eq!(monitors[0].name, "HDMI-1");
         assert_eq!(monitors[0].resolution, (2560, 1440));
         assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[0].name, "HDMI-1");
+        assert_eq!(monitors[1].name, "DP-1");
         assert_eq!(monitors[1].resolution, (1920, 1080));
         assert_eq!(monitors[1].position, (0, 1440));
-        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[2].resolution, (1920, 1080));
         assert_eq!(monitors[2].position, (2560, 0));
-        assert_eq!(monitors[2].name, "DP-2");
     }
 
 
@@ -163,15 +163,15 @@ mod tests {
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app);
         handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app);
         handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app);
+        assert_eq!(monitors[1].name, "HDMI-1");
         assert_eq!(monitors[1].resolution, (2560, 1440));
         assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[1].name, "HDMI-1");
+        assert_eq!(monitors[0].name, "DP-1");
         assert_eq!(monitors[0].resolution, (1920, 1080));
         assert_eq!(monitors[0].position, (2560, 0));
-        assert_eq!(monitors[0].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[2].resolution, (1920, 1080));
         assert_eq!(monitors[2].position, (4480, 0));
-        assert_eq!(monitors[2].name, "DP-2");
     }
 
     #[test]
@@ -213,15 +213,15 @@ mod tests {
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app);
         handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app);
 
+        assert_eq!(monitors[1].name, "HDMI-1");
         assert_eq!(monitors[1].resolution, (2560, 1440));
         assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[1].name, "HDMI-1");
+        assert_eq!(monitors[0].name, "DP-1");
         assert_eq!(monitors[0].resolution, (1920, 1080));
         assert_eq!(monitors[0].position, (2560, 0));
-        assert_eq!(monitors[0].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[2].resolution, (1920, 1080));
         assert_eq!(monitors[2].position, (4480, 0));
-        assert_eq!(monitors[2].name, "DP-2");
 
     }
 
@@ -302,12 +302,12 @@ mod tests {
 
         swap_monitors(&mut monitors, 0, 1, Dir::Left);
 
-        assert_eq!(monitors[0].position, (2560,0));
         assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[1].position, (0,0));
+        assert_eq!(monitors[0].position, (2560,0));
         assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[2].position, (0,1440));
+        assert_eq!(monitors[1].position, (0,0));
         assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[2].position, (0,1440));
     }
 
     #[test]
@@ -321,12 +321,12 @@ mod tests {
 
         swap_monitors(&mut monitors, 0, 2, Dir::Left);
 
-        assert_eq!(monitors[0].position, (2560,1080));
         assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[1].position, (0,0));
+        assert_eq!(monitors[0].position, (2560,1080));
         assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[2].position, (0,1080));
+        assert_eq!(monitors[1].position, (0,0));
         assert_eq!(monitors[2].name, "HDMI-1");
+        assert_eq!(monitors[2].position, (0,1080));
     }
 
     #[test]
