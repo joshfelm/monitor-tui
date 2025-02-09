@@ -20,9 +20,9 @@ layout for testing purposes
 - [x] Modify refresh rate
 - [x] Modify resolution
 - [ ] Presets (horizontal, vertical, defaults, etc)
-- [ ] Undo
+- [x] Undo
 - [ ] Autorandr integration
 - [ ] Monitors.xml integration
 - [x] Add debug mode
-- [ ] Update TUI to ratatui (why did I choose TUI when it's not
+- [x] Update TUI to ratatui (why did I choose TUI when it's not
       maintained.....)
