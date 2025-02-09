@@ -293,10 +293,10 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
             let direction = if is_down { Dir::Down } else { Dir::Up };
 
             match app.state {
-                State::MonitorEdit => handle_monitor_edit(&mut app, &mut monitors, direction),
-                State::MonitorSwap => handle_monitor_swap(&mut app, &mut monitors, direction),
-                State::MenuSelect => handle_menu_select(&mut app, is_down),
-                State::InfoEdit => handle_info_edit(&mut app, &monitors, is_down),
+                State::MonitorEdit  => handle_monitor_edit(&mut app, &mut monitors, direction),
+                State::MonitorSwap  => handle_monitor_swap(&mut app, &mut monitors, direction),
+                State::MenuSelect   => handle_menu_select(&mut app, is_down),
+                State::InfoEdit     => handle_info_edit(&mut app, &monitors, is_down),
                 _ => {} // Unimplemented
             }
         }
