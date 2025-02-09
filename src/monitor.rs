@@ -32,13 +32,13 @@ impl Monitor {
     }
 
     pub fn get_res_difference(&self) -> (i32, i32) {
-        let new_res = ((self.resolution.0 as f32 * self.scale) as i32, (self.resolution.1 as f32 * self.scale) as i32);
+        let new_res = ((self.resolution.0 as f32 * (1.0/self.scale)) as i32, (self.resolution.1 as f32 * (1.0/self.scale)) as i32);
         let difference = (new_res.0 - self.displayed_resolution.0, new_res.1 - self.displayed_resolution.1);
         return difference;
     }
 
     pub fn update_scale(&mut self) {
-        let new_res = ((self.resolution.0 as f32 * self.scale) as i32, (self.resolution.1 as f32 * self.scale) as i32);
+        let new_res = ((self.resolution.0 as f32 * (1.0/self.scale)) as i32, (self.resolution.1 as f32 * (1.0/self.scale)) as i32);
         self.displayed_resolution = new_res;
     }
 

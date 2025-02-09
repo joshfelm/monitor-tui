@@ -658,7 +658,7 @@ fn generate_monitor_info(
             ),
             format_monitor_info(
                 "Scale",
-                format!("{:.2}", monitor.displayed_resolution.0 as f32 / monitor.resolution.0 as f32),
+                format!("{:.2}", monitor.resolution.0 as f32 / monitor.displayed_resolution.0 as f32),
                 get_style(app, MenuEntry::Scale),
             ),
             format_monitor_info(
