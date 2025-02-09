@@ -5,12 +5,13 @@ use crate::{App, Dir, FocusedWindow, MenuEntry, State};
 use std::io;
 use std::process::Command;
 
-use tui::widgets::canvas::Rectangle;
-use tui::{
+use ratatui::text::Line;
+use ratatui::widgets::canvas::Rectangle;
+use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Modifier},
-    text::{Spans, Span},
+    text::Span,
     widgets::{Block, Borders, Paragraph, Wrap, canvas::Canvas},
     Terminal,
     Frame,
@@ -22,7 +23,7 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Monitors, debug: bool, app_states: &mut Vec<Monitors>) -> io::Result<()> {
+fn main_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Monitors, debug: bool, app_states: &mut Vec<Monitors>) -> io::Result<()> {
     // initial setup
     let mut app = App::new(State::MonitorEdit, debug);
 
@@ -30,7 +31,7 @@ fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors:
     app_states.push((*monitors.clone()).to_vec());
 
     loop {
-        terminal.draw(|f| render_ui(f, &app, &monitors))?;
+        terminal.draw(|f| render_ui::<B>(f, &app, &monitors))?;
 
         if let Event::Key(key) = event::read()? {
             handle_key_press(key.code, &mut monitors, &mut app, app_states);
@@ -78,9 +79,9 @@ pub fn run_tui(debug: bool) -> Result<(), io::Error> {
     Ok(())
 }
 
-fn render_debug_popup<B: tui::backend::Backend>(f: &mut Frame<B>, monitors: &Monitors) {
+fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
     // Create a centered pop-up
-    let popup_area = centered_rect(60, 20, f.size());
+    let popup_area = centered_rect(60, 20, f.area());
 
     // Command display block
     let block = Block::default()
@@ -116,9 +117,9 @@ fn render_debug_popup<B: tui::backend::Backend>(f: &mut Frame<B>, monitors: &Mon
     f.render_widget(paragraph, popup_area);
 }
 
-fn render_help_popup<B: tui::backend::Backend>(f: &mut Frame<B>) {
+fn render_help_popup(f: &mut Frame) {
     // help window with commands
-    let help_popup_area = centered_rect(60, 20, f.size());
+    let help_popup_area = centered_rect(60, 20, f.area());
     let commands = {[
         ("?", "help"),
         ("<Enter>", "Edit selected monitor information"),
@@ -129,10 +130,10 @@ fn render_help_popup<B: tui::backend::Backend>(f: &mut Frame<B>) {
         ("d", "Preview xrandr command"),
     ]};
 
-    let info: Vec<Spans> = commands
+    let info: Vec<Line> = commands
         .iter()
         .map(|(cmd, desc)| {
-            Spans::from(vec![
+            Line::from(vec![
                 Span::styled(
                     format!("{}: {}", cmd, desc),
                     Style::default()
@@ -149,12 +150,12 @@ fn render_help_popup<B: tui::backend::Backend>(f: &mut Frame<B>) {
     let info_paragraph = Paragraph::new(info)
         .block(info_block)
         .style(Style::default().fg(Color::White))
-        .wrap(tui::widgets::Wrap { trim: true });
+        .wrap(ratatui::widgets::Wrap { trim: true });
 
     f.render_widget(info_paragraph, help_popup_area);
 }
 
-fn render_main_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitors: &Monitors) {
+fn render_main_ui(f: &mut Frame, app: &App, monitors: &Monitors) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -163,7 +164,7 @@ fn render_main_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitor
                 Constraint::Percentage(30)
             ]
                 .as_ref())
-        .split(f.size());
+        .split(f.area());
 
     let monitor_block = Block::default()
         .title("Monitors")
@@ -200,7 +201,7 @@ fn render_main_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitor
     let info_paragraph = Paragraph::new(info)
         .block(info_block)
         .style(Style::default().fg(Color::White))
-        .wrap(tui::widgets::Wrap { trim: true });
+        .wrap(ratatui::widgets::Wrap { trim: true });
 
     if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) {
         let bottom_chunks = Layout::default()
@@ -228,7 +229,7 @@ fn render_main_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitor
         let extra_paragraph = Paragraph::new(extra_info)
             .block(extra_block)
             .style(Style::default().fg(Color::White))
-            .wrap(tui::widgets::Wrap { trim: true });
+            .wrap(ratatui::widgets::Wrap { trim: true });
 
         f.render_widget(info_paragraph, bottom_chunks[0]);
         f.render_widget(extra_paragraph, bottom_chunks[1]);
@@ -237,7 +238,7 @@ fn render_main_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitor
     }
 }
 
-fn render_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitors: &Monitors) {
+fn render_ui<B: ratatui::backend::Backend>(f: &mut Frame, app: &App, monitors: &Monitors) {
     match app.state {
         State::DebugPopup   => render_debug_popup(f, monitors),
         State::HelpPopup    => render_help_popup(f),
@@ -552,19 +553,19 @@ fn send_to_xrandr(monitors: &Monitors, app: App) {
     }
 }
 
-// Generate the spans to draw extra information (e.g. framerate)
+// Generate the Line to draw extra information (e.g. framerate)
 fn generate_extra_info(
     monitors: &Monitors,
     app: App,
-) -> Vec<Spans> {
+) -> Vec<Line> {
     if let Some(monitor) = monitors.get(app.selected_idx) {
         if app.menu_entry == MenuEntry::Framerate {
             if let Some(framerates) = monitor.available_resolutions.get(&monitor.resolution) {
-                let framerate_spans: Vec<Spans> = framerates
+                let framerate_line: Vec<Line> = framerates
                     .iter()
                     .enumerate()
                     .map(|(i, fr)| {
-                        Spans::from(vec![
+                        Line::from(vec![
                             Span::styled(
                                 format!("Option {}: {}hz", i, fr),
                                 if app.extra_entry == i {
@@ -583,17 +584,17 @@ fn generate_extra_info(
                         ])
                     })
                     .collect();
-                framerate_spans
+                framerate_line
             } else {
-                vec![Spans::from("No available framerates")]
+                vec![Line::from("No available framerates")]
             }
         } else if app.menu_entry == MenuEntry::Resolution {
             if let Some(resolutions) = Some(monitor.sort_resolutions()) {
-                let resolution_spans: Vec<Spans> = resolutions
+                let resolution_line: Vec<Line> = resolutions
                     .iter()
                     .enumerate()
                     .map(|(i, res)| {
-                        Spans::from(vec![
+                        Line::from(vec![
                             Span::styled(
                                 format!("Option {}: {}x{}", i, res.0, res.1),
                                 if app.extra_entry == i {
@@ -612,23 +613,23 @@ fn generate_extra_info(
                         ])
                     })
                     .collect();
-                resolution_spans
+                resolution_line
             } else {
-                vec![Spans::from("No available resolutions")]
+                vec![Line::from("No available resolutions")]
             }
         } else {
-            vec![Spans::from("Nothing to see here!")]
+            vec![Line::from("Nothing to see here!")]
         }
     } else {
-        vec![Spans::from("Nothing to see here!")]
+        vec![Line::from("Nothing to see here!")]
     }
 }
 
-// Generate the spans from monitor info
+// Generate the Line from monitor info
 fn generate_monitor_info(
     monitors: &Monitors,
     app: App
-) -> Vec<Spans> {
+) -> Vec<Line> {
     fn get_style(app: App, entry: MenuEntry) -> Style {
         if app.menu_entry == entry {
             Style::default()
@@ -643,8 +644,8 @@ fn generate_monitor_info(
         }
     }
 
-    fn format_monitor_info(label: &str, value: String, style: Style) -> Spans {
-        Spans::from(vec![Span::styled(format!("{label}: {value}"), style)])
+    fn format_monitor_info(label: &str, value: String, style: Style) -> Line {
+        Line::from(vec![Span::styled(format!("{label}: {value}"), style)])
     }
 
     if let Some(monitor) = monitors.get(app.selected_idx) {
@@ -709,7 +710,7 @@ fn generate_monitor_info(
             ),
         ]
     } else {
-        vec![Spans::from("No monitor selected")]
+        vec![Line::from("No monitor selected")]
     }
 }
 
@@ -743,7 +744,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 }
 
 // draw monitors as defined
-fn draw_monitors<B: tui::backend::Backend>(f: &mut tui::Frame<B>, area: Rect, monitors: &[Monitor], app: App) {
+fn draw_monitors(f: &mut ratatui::Frame, area: Rect, monitors: &[Monitor], app: App) {
     let total_width: f64 = monitors.iter().map(|m| m.position.0 + m.displayed_resolution.0 as i32).max().unwrap_or(0).into();
     let total_height: f64 = monitors.iter().map(|m| m.position.1 + m.displayed_resolution.1 as i32).max().unwrap_or(0).into();
 

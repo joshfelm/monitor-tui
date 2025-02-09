@@ -10,11 +10,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tui = "0.19"
 crossterm = "0.26"
 num-traits = "0.2"
 num-derive = "0.4"
 itertools = "0.10"
+ratatui = "0.29.0"
 
 [lib]
 name = "monitor_tui"
