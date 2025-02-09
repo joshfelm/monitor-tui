@@ -45,33 +45,38 @@ fn main_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut monit
 
 
 pub fn run_tui(debug: bool) -> Result<(), io::Error> {
-    // Setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
     // Get monitor information
-    let mut monitors = get_monitor_info(debug)?;
-    monitor_proximity(&mut monitors);
+    match get_monitor_info(debug) {
+        Ok(mut monitors) => {
+            // Setup terminal
+            enable_raw_mode()?;
+            let mut stdout = io::stdout();
+            execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+            let backend = CrosstermBackend::new(stdout);
+            let mut terminal = Terminal::new(backend)?;
 
-    let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    // Run the main loop
-    let res = main_loop(&mut terminal, monitors, debug, &mut app_states);
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+            // Run the main loop
+            let _res = main_loop(&mut terminal, monitors, debug, &mut app_states);
 
-    if let Err(err) = res {
-        println!("{:?}", err)
+            // Restore terminal
+            disable_raw_mode()?;
+            execute!(
+                terminal.backend_mut(),
+                LeaveAlternateScreen,
+                DisableMouseCapture
+            )?;
+            terminal.show_cursor()?;
+
+        }
+        Err(err) => {
+            println!("");
+            println!("FATAL: Problem with xrandr, can't be run!");
+            println!("Error: {:?}", err);
+        }
     }
 
     println!("");
