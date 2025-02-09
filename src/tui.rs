@@ -388,6 +388,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         monitors[app.current_idx].is_selected = false;
                         app.focused_window = FocusedWindow::MonitorList;
                     }
+                    app.update_state(app.previous_state);
                     app_states.push((*monitors.clone()).to_vec());
                 }
                 State::InfoEdit => {
