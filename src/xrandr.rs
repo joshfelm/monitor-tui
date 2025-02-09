@@ -1,20 +1,27 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::io;
+use std::str::Lines;
 
 use crate::monitor::*;
 use crate::debug::xrandr_debug::XRANDR_OUTPUT;
 
 // get initial monitor information from xrandr
 pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
-    let output = Command::new("xrandr")
-        .arg("--query")
-        .output()?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut xrandr_lines = stdout.lines();
+    let output: Output;
+    let xrandr_lines : Lines;
+    let stdout: Cow<str>;
 
     if debug {
         xrandr_lines = XRANDR_OUTPUT.lines();
+    } else {
+        // TODO: Handle xrandr not found
+        output = Command::new("xrandr")
+            .arg("--query")
+            .output()?;
+        stdout = String::from_utf8_lossy(&output.stdout);
+        xrandr_lines = stdout.lines();
     }
 
     let mut selected_framerate = 0.0;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{App, Dir, State};
+use crate::{App, Dir};
 use std::cmp;
 
 #[derive(Clone, PartialEq)]
@@ -58,32 +58,37 @@ pub fn swap_monitors(
     current_idx: usize,
     switch_idx: usize,
     direction: Dir,
-    app: App
 ) {
-    assert!(
-        app.state == State::MonitorSwap,
-        "Tried to swap monitors when not in monitor edit state, actual state: {:?}",
-        app.state
-    );
-
     let temp_monitor = monitors[switch_idx].clone();
 
     match direction {
         Dir::Right => {
+            let difference = monitors[switch_idx].position.0 - (monitors[current_idx].position.0 + temp_monitor.displayed_resolution.0);
             monitors[switch_idx].position = monitors[current_idx].position;
             monitors[current_idx].position.0 += temp_monitor.displayed_resolution.0 as i32;
+            shift_mons(monitors, switch_idx, difference, false, vec![switch_idx]);
         }
         Dir::Left => {
+            let difference = monitors[current_idx].position.0 - (monitors[switch_idx].position.0 + monitors[current_idx].displayed_resolution.0);
             monitors[switch_idx].position.0 += monitors[current_idx].displayed_resolution.0 as i32;
             monitors[current_idx].position = temp_monitor.position;
+            shift_mons(monitors, current_idx, difference, false, vec![current_idx]);
         }
         Dir::Down => {
+            let difference = monitors[current_idx].resolution.1 - monitors[switch_idx].resolution.1;
             monitors[switch_idx].position = monitors[current_idx].position;
             monitors[current_idx].position.1 += temp_monitor.displayed_resolution.1 as i32;
+            if difference != 0 && (monitors[current_idx].position.1 == 0 || monitors[switch_idx].position.1 == 0) {
+                shift_mons(monitors, switch_idx, difference, true, vec![switch_idx]);
+            }
         }
         Dir::Up => {
+            let difference = monitors[switch_idx].resolution.1 - monitors[current_idx].resolution.1;
             monitors[switch_idx].position.1 += monitors[current_idx].displayed_resolution.1 as i32;
             monitors[current_idx].position = temp_monitor.position;
+            if difference != 0 && (monitors[current_idx].position.1 == 0 || monitors[switch_idx].position.1 == 0) {
+                shift_mons(monitors, current_idx, difference, true, vec![current_idx]);
+            }
         }
     }
 
@@ -98,7 +103,7 @@ pub fn swap_monitors(
     monitors[current_idx].down = temp_monitor.down;
 
     // update order
-    monitors.swap(app.selected_idx, app.current_monitor);
+    monitors.swap(switch_idx, current_idx);
 
     update_neighbor_positions(monitors);
 }
@@ -110,12 +115,15 @@ pub fn update_neighbor_positions(monitors: &mut Monitors) {
         if let Some(right_index) = right {
             let pos_x = monitors[i].position.0 + monitors[i].displayed_resolution.0;
             monitors[right_index].position.0 = pos_x;
+            monitors[right_index].position.1 = monitors[i].position.1;
         }
         if let Some(down_index) = down {
             let pos_y = monitors[i].position.1 + monitors[i].displayed_resolution.1;
             monitors[down_index].position.1 = pos_y;
+            monitors[down_index].position.0 = monitors[i].position.0;
         }
     }
+    monitor_proximity(monitors);
 }
 
 // shift monitor specifically when resolution changes
@@ -132,6 +140,9 @@ pub fn shift_res(monitors: &mut Monitors, mon_index: usize, difference: (i32, i3
 }
 
 // shift monitor and recursively shift connected monitors by a given amount
+// - If shifting horizontally, work right (ignore any connected to the left, since they won't need
+//      to shift)
+// - If shifting vertically, work downwards (ignore any connected above for the same reason)
 pub fn shift_mons(monitors: &mut Monitors, current_idx: usize, difference: i32, vertical: bool, mut searched_mons: Vec<usize>) -> Vec<usize> {
     if !searched_mons.contains(&current_idx) {
         if vertical {
@@ -145,10 +156,10 @@ pub fn shift_mons(monitors: &mut Monitors, current_idx: usize, difference: i32, 
     if monitors[current_idx].right.is_some() && !searched_mons.contains(&monitors[current_idx].right.unwrap()) {
         searched_mons = shift_mons(monitors, monitors[current_idx].right.unwrap(), difference, vertical, searched_mons)
     }
-    if monitors[current_idx].left.is_some() && !searched_mons.contains(&monitors[current_idx].left.unwrap()) {
+    if monitors[current_idx].left.is_some() && !searched_mons.contains(&monitors[current_idx].left.unwrap()) && vertical {
         searched_mons = shift_mons(monitors, monitors[current_idx].left.unwrap(), difference, vertical, searched_mons)
     }
-    if monitors[current_idx].up.is_some() && !searched_mons.contains(&monitors[current_idx].up.unwrap()) {
+    if monitors[current_idx].up.is_some() && !searched_mons.contains(&monitors[current_idx].up.unwrap()) && !vertical {
         searched_mons = shift_mons(monitors, monitors[current_idx].up.unwrap(), difference, vertical, searched_mons)
     }
     if monitors[current_idx].down.is_some() && !searched_mons.contains(&monitors[current_idx].down.unwrap()) {
@@ -212,10 +223,9 @@ pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert
     }
     if vert_dir == Dir::Right {
         monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 + monitors[pivot_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
-        let left = monitors[app.selected_idx].left;
-        if left.is_some() {
-            monitors[pivot_idx].left = left;
-            monitors[left.unwrap()].right = Some(pivot_idx);
+        if let Some(left) = monitors[app.selected_idx].left {
+            monitors[pivot_idx].left = Some(left);
+            monitors[left].right = Some(pivot_idx);
         }
         monitors[pivot_idx].right = Some(app.selected_idx);
         monitors[app.selected_idx].left = Some(pivot_idx);
@@ -234,7 +244,6 @@ pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert
         monitors[pivot_idx].left = Some(app.selected_idx);
         monitors[app.selected_idx].right = Some(pivot_idx);
     }
-    monitor_proximity(monitors);
 
     update_neighbor_positions(monitors);
 }
