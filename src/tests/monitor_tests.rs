@@ -10,7 +10,7 @@ mod tests {
     fn swap_right() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
@@ -27,7 +27,7 @@ mod tests {
     fn swap_left() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         app.current_idx = 1;
@@ -45,7 +45,7 @@ mod tests {
     fn swap_down() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
 
         //veritcal stack monitors
         monitors[1].position = (0,1440);
@@ -65,7 +65,7 @@ mod tests {
     fn swap_up() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
 
         //veritcal stack monitors
         monitors[1].position = (0,1440);
@@ -87,7 +87,7 @@ mod tests {
     fn vert_push_up() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
@@ -103,7 +103,7 @@ mod tests {
     fn vert_push_down() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
@@ -119,7 +119,7 @@ mod tests {
     fn vert_push_up_from_middle() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         app.current_idx = 1;
@@ -141,7 +141,7 @@ mod tests {
     fn vert_push_down_from_middle() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         app.current_idx = 1;
@@ -163,7 +163,7 @@ mod tests {
     fn vert_push_with_below() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
 
         monitors[0].position = (1920,0);
         monitors[1].position = (0,0);
@@ -186,7 +186,7 @@ mod tests {
     fn vert_triangle_down_position() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         // we expect this to look the same with the list in a different order.
@@ -209,7 +209,7 @@ mod tests {
     fn vert_triangle_down_proximity() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         // we expect this to look the same with the list in a different order.
@@ -237,7 +237,7 @@ mod tests {
     fn vert_triangle_up_position() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         // we expect this to look the same with the list in a different order.
@@ -262,7 +262,7 @@ mod tests {
     fn vert_triangle_up_proximity() {
         let mut app = App::new(State::MonitorSwap, true);
         let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<(App, Monitors)> = Vec::new();
+        let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
         // we expect this to look the same with the list in a different order.

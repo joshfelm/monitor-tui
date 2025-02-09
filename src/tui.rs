@@ -22,12 +22,12 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
-fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Monitors, debug: bool, app_states: &mut Vec<(App, Monitors)>) -> io::Result<()> {
+fn main_loop<B: tui::backend::Backend>(terminal: &mut Terminal<B>, mut monitors: Monitors, debug: bool, app_states: &mut Vec<Monitors>) -> io::Result<()> {
     // initial setup
     let mut app = App::new(State::MonitorEdit, debug);
 
     // push a copy of the initial state to the history
-    app_states.push((app.clone(), (*monitors.clone()).to_vec()));
+    app_states.push((*monitors.clone()).to_vec());
 
     loop {
         terminal.draw(|f| render_ui(f, &app, &monitors))?;
@@ -55,7 +55,7 @@ pub fn run_tui(debug: bool) -> Result<(), io::Error> {
     let mut monitors = get_monitor_info(debug)?;
     monitor_proximity(&mut monitors);
 
-    let mut app_states: Vec<(App, Monitors)> = Vec::new();
+    let mut app_states: Vec<Monitors> = Vec::new();
 
     // Run the main loop
     let res = main_loop(&mut terminal, monitors, debug, &mut app_states);
@@ -245,7 +245,7 @@ fn render_ui<B: tui::backend::Backend>(f: &mut Frame<B>, app: &App, monitors: &M
     }
 }
 
-pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut App, app_states: &mut Vec<(App, Monitors)>) {
+pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut App, app_states: &mut Vec<Monitors>) {
     match key {
         // help
         KeyCode::Char('?') => {
@@ -265,12 +265,11 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
         KeyCode::Char('u') => {
             if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
                 if let Some(last_state) = app_states.pop() {
-                    *app = last_state.0;
-                    *monitors = last_state.1;
+                    *monitors = last_state;
 
                     // if empty, push a copy of the default state
                     if app_states.len() == 0 {
-                        app_states.push((*app, (*monitors.clone()).to_vec()));
+                        app_states.push((*monitors.clone()).to_vec());
                     }
                 }
             }
@@ -321,11 +320,11 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         app.focused_window = FocusedWindow::MonitorList;
                     }
                     app.update_state(app.previous_state);
-                    app_states.push((*app, (*monitors.clone()).to_vec()));
                 }
                 State::MenuSelect => { if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); } }
                 State::InfoEdit => {
                     assert!(matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
+                    app_states.push((*monitors.clone()).to_vec());
                     if matches!(app.menu_entry, MenuEntry::Resolution) {
                         let old_res = monitors[app.selected_idx].displayed_resolution;
                         let new_res = monitors[app.selected_idx].sort_resolutions()[app.extra_entry];
@@ -349,6 +348,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
         // move
         KeyCode::Char('m') => {
             if matches!(app.state, State::MonitorEdit | State::MenuSelect) {
+                app_states.push((*monitors.clone()).to_vec());
                 if matches!(app.state, State::MonitorEdit) {
                     monitors[app.selected_idx].is_selected = true;
                     app.current_idx = app.selected_idx;
@@ -360,6 +360,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
         // set primary
         KeyCode::Char('p') => {
             if matches!(app.state, State::MonitorEdit | State::MonitorSwap) {
+                app_states.push((*monitors.clone()).to_vec());
                 let mut iterator = monitors.iter_mut();
                 while let Some(element) = iterator.next() {
                     element.is_primary = false;
@@ -381,8 +382,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         monitors[app.current_idx].is_selected = false;
                         app.focused_window = FocusedWindow::MonitorList;
                     }
-                    app.update_state(app.previous_state);
-                    app_states.push((*app, (*monitors.clone()).to_vec()));
+                    app_states.push((*monitors.clone()).to_vec());
                 }
                 State::InfoEdit => {
                     app.update_state(State::MenuSelect);
