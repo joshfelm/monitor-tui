@@ -340,7 +340,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
         }
         // set primary
         KeyCode::Char('p') => {
-            if (matches!(app.state, State::MonitorEdit) || matches!(app.state, State::MonitorSwap)) {
+            if matches!(app.state, State::MonitorEdit | State::MonitorSwap) {
                 let mut iterator = monitors.iter_mut();
                 while let Some(element) = iterator.next() {
                     element.is_primary = false;
