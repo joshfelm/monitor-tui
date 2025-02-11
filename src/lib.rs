@@ -12,7 +12,7 @@ pub use monitor::Monitor;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Dir {
     Left,
     Right,
