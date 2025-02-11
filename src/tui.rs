@@ -5,14 +5,12 @@ use crate::{App, Dir, FocusedWindow, MenuEntry, State};
 use std::io;
 use std::process::Command;
 
-use ratatui::text::Line;
-use ratatui::widgets::canvas::Rectangle;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style, Modifier},
-    text::Span,
-    widgets::{Block, Borders, Paragraph, Wrap, canvas::Canvas},
+    text::{Span, Line},
+    widgets::{Block, Borders, Paragraph, Wrap, canvas::{Canvas, Rectangle}},
     Terminal,
     Frame,
 };
@@ -132,6 +130,7 @@ fn render_help_popup(f: &mut Frame) {
         ("m", "Enter monitor mode"),
         ("r", "Reset to previously saved state (UNIMPLEMENTED)"),
         ("s", "Apply saved changes"),
+        ("u", "Undo last change"),
         ("d", "Preview xrandr command"),
     ]};
 
@@ -265,9 +264,9 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                 app.update_state(State::DebugPopup);
             }
         }
-        KeyCode::Char('q') => { app.update_state(State::Quit) }
+        KeyCode::Char('q') => app.update_state(State::Quit),
         // save: send to xrandr
-        KeyCode::Char('s') => { send_to_xrandr(&monitors, *app); }
+        KeyCode::Char('s') => send_to_xrandr(&monitors, *app),
         KeyCode::Char('u') => {
             if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
                 if let Some(last_state) = app_states.pop() {
@@ -327,7 +326,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                     }
                     app.update_state(app.previous_state);
                 }
-                State::MenuSelect => { if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); } }
+                State::MenuSelect => if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) { app.update_state(State::InfoEdit); },
                 State::InfoEdit => {
                     assert!(matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution), "Editing something that's not Framerate or resolution!");
                     app_states.push((*monitors.clone()).to_vec());
@@ -347,7 +346,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         monitors[app.selected_idx].set_framerate(app.extra_entry);
                     }
                 }
-                State::DebugPopup | State::HelpPopup => { app.update_state(app.previous_state); }
+                State::DebugPopup | State::HelpPopup => app.update_state(app.previous_state),
                 _ => {} //unimplemented
             }
         }
