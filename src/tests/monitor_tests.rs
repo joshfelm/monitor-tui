@@ -179,7 +179,7 @@ mod tests {
         assert_eq!(monitors[2].name, "DP-2");
         assert_eq!(monitors[0].position, (0,0));
         assert_eq!(monitors[1].position, (0,1440));
-        assert_eq!(monitors[2].position, (1920,1440));
+        assert_eq!(monitors[2].position, (0,1080+1440));
     }
 
     #[test]
@@ -380,6 +380,46 @@ mod tests {
         assert_eq!(monitors[2].name, "HDMI-1");
         assert_eq!(monitors[1].position, (0,1080));
         assert_eq!(monitors[1].name, "DP-1");
+    }
+
+    #[test]
+    fn vert_push_right_with_below() {
+        let mut app = App::new(State::MonitorSwap, true);
+        let mut monitors = get_monitor_info(true).unwrap();
+        let mut app_states: Vec<Monitors> = Vec::new();
+
+        monitors[0].position = (0,0);
+        monitors[1].position = (0,1440);
+        monitors[2].position = (2560,0);
+        monitor_proximity(&mut monitors);
+
+        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+        assert_eq!(monitors[0].name, "HDMI-1");
+        assert_eq!(monitors[0].position, (0,0));
+        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[1].position, (0,1440+1080));
+        assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[2].position, (0,1440));
+    }
+
+    #[test]
+    fn horizontal_push_right_with_above_and_left() {
+        let mut app = App::new(State::MonitorSwap, true);
+        let mut monitors = get_monitor_info(true).unwrap();
+        let mut app_states: Vec<Monitors> = Vec::new();
+
+        monitors[0].position = (1920,1080);
+        monitors[1].position = (0,1080);
+        monitors[2].position = (1920,0);
+        monitor_proximity(&mut monitors);
+
+        handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+        assert_eq!(monitors[0].name, "HDMI-1");
+        assert_eq!(monitors[1].name, "DP-1");
+        assert_eq!(monitors[2].name, "DP-2");
+        assert_eq!(monitors[0].position, (1920+1920,0));
+        assert_eq!(monitors[1].position, (0,0));
+        assert_eq!(monitors[2].position, (1920,0));
     }
 
     #[test]
