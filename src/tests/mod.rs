@@ -1,4 +1,4 @@
 #[cfg(test)]
-mod monitor_tests;
+mod monitors;
 #[cfg(test)]
-mod tui_tests;
+mod tui;
