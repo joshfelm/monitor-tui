@@ -108,6 +108,7 @@ pub fn swap_monitors(
     update_neighbor_positions(monitors);
 }
 
+// touch up right and below neighbours
 pub fn update_neighbor_positions(monitors: &mut Monitors) {
     for i in 0..monitors.len() {
         let right = monitors[i].right;
@@ -170,46 +171,58 @@ pub fn shift_mons(monitors: &mut Monitors, current_idx: usize, difference: i32, 
 
 // when moving up or down, and need to turn a horizontal stack into a vertical one
 pub fn vert_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: Dir, app:App) {
-    if dir == Dir::Left {
-        monitors[app.selected_idx].left = None;
-        if let Some(right_mon) = monitors[app.selected_idx].right {
-            let difference = monitors[right_mon].position.0 - monitors[app.selected_idx].displayed_resolution.0;
-            shift_mons(monitors, right_mon, difference, false, Vec::new());
+    match dir {
+        Dir::Left => {
+            monitors[app.selected_idx].left = None;
+            if let Some(right_idx) = monitors[app.selected_idx].right {
+                let difference = monitors[right_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0;
+                shift_mons(monitors, right_idx, difference, false, Vec::new());
+            }
+            monitors[pivot_idx].right = monitors[app.selected_idx].right;
+            monitors[app.selected_idx].right = None;
         }
-        monitors[pivot_idx].right = monitors[app.selected_idx].right;
-        monitors[app.selected_idx].right = None;
-    } else if dir == Dir::Right {
-        monitors[app.selected_idx].right = None;
-        if let Some(left_mon) = monitors[app.selected_idx].left {
-            let difference = monitors[left_mon].position.0 - monitors[app.selected_idx].displayed_resolution.0;
-            shift_mons(monitors, left_mon, difference, false, Vec::new());
+        Dir::Right => {
+            monitors[app.selected_idx].right = None;
+            if let Some(left_idx) = monitors[app.selected_idx].left {
+                let difference = monitors[left_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0;
+                shift_mons(monitors, left_idx, difference, false, Vec::new());
+            }
+            monitors[pivot_idx].left = monitors[app.selected_idx].left;
+            monitors[app.selected_idx].left = None;
         }
-        monitors[pivot_idx].left = monitors[app.selected_idx].left;
-        monitors[app.selected_idx].left = None;
+        _ => panic!("Direction {:?} not supported in vert_push", dir),
     }
+
+    // shift connected monitors horizontally
     if monitors[pivot_idx].position.0 > monitors[app.selected_idx].position.0 {
         let difference = monitors[pivot_idx].position.0 - monitors[app.selected_idx].position.0;
         shift_mons(monitors, pivot_idx, difference, false, Vec::new());
     }
-    if vert_dir == Dir::Down {
-        monitors[app.selected_idx].position = (monitors[pivot_idx].position.0, monitors[pivot_idx].position.1 + monitors[pivot_idx].displayed_resolution.1);
-        monitors[pivot_idx].down = Some(app.selected_idx);
-        monitors[app.selected_idx].up = Some(pivot_idx);
-    } else if vert_dir == Dir::Up {
-        let new_pos_1 = monitors[pivot_idx].position.1 - monitors[pivot_idx].displayed_resolution.1;
-        if new_pos_1 < 0 {
-            let difference = monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1;
-            shift_mons(monitors, pivot_idx, difference, true, Vec::new());
-        }
 
-        // move monitors under vertical push down to fit new monitor in
-        if let Some(down_mon) = monitors[app.selected_idx].down {
-            shift_mons(monitors, down_mon, -1*monitors[pivot_idx].displayed_resolution.1, true, Vec::new());
-            let difference = monitors[down_mon].position.0 - monitors[pivot_idx].position.0;
-            shift_mons(monitors, down_mon, difference, false, Vec::new());
+    match vert_dir {
+        Dir::Down => {
+            monitors[app.selected_idx].position = (monitors[pivot_idx].position.0, monitors[pivot_idx].position.1 + monitors[pivot_idx].displayed_resolution.1);
+            monitors[pivot_idx].down      = Some(app.selected_idx);
+            monitors[app.selected_idx].up = Some(pivot_idx);
         }
-        monitors[app.selected_idx].position = (monitors[pivot_idx].position.0, monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1);
+        Dir::Up => {
+            let new_pos_1 = monitors[pivot_idx].position.1 - monitors[pivot_idx].displayed_resolution.1;
+            if new_pos_1 < 0 {
+                let difference = monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1;
+                shift_mons(monitors, pivot_idx, difference, true, Vec::new());
+            }
+
+            // move monitors under vertical push down to fit new monitor in
+            if let Some(down_idx) = monitors[app.selected_idx].down {
+                shift_mons(monitors, down_idx, -1*monitors[pivot_idx].displayed_resolution.1, true, Vec::new());
+                let difference = monitors[down_idx].position.0 - monitors[pivot_idx].position.0;
+                shift_mons(monitors, down_idx, difference, false, Vec::new());
+            }
+            monitors[app.selected_idx].position = (monitors[pivot_idx].position.0, monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1);
+        }
+        _ => panic!("Vertical direction {:?} not supported in vert_push", dir),
     }
+
     monitor_proximity(monitors);
 
     update_neighbor_positions(monitors);
@@ -217,39 +230,51 @@ pub fn vert_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: 
 
 // when moving left or right, and need to turn a vertical stack into a horizontal one
 pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: Dir, app:App) {
-    if dir == Dir::Up {
-        monitors[pivot_idx].down = monitors[app.selected_idx].down;
-        monitors[app.selected_idx].up = None;
-    } else if dir == Dir::Down {
-        monitors[pivot_idx].up = monitors[app.selected_idx].up;
-        monitors[app.selected_idx].down = None;
+    match dir {
+        Dir::Down => {
+            monitors[pivot_idx].up = monitors[app.selected_idx].up;
+            monitors[app.selected_idx].down = None;
+        }
+        Dir::Up => {
+            monitors[pivot_idx].down = monitors[app.selected_idx].down;
+            monitors[app.selected_idx].up = None;
+        }
+        _ => panic!("Direction {:?} not supported in horizontal_push", dir),
     }
+
+    // shift connected monitors vertically
     if monitors[pivot_idx].position.1 > monitors[app.selected_idx].position.1 {
         let difference = monitors[pivot_idx].position.1 - cmp::min(monitors[app.selected_idx].position.1, monitors[pivot_idx].position.1);
         shift_mons(monitors, pivot_idx, difference, true, Vec::new());
     }
-    if vert_dir == Dir::Right {
-        monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 + monitors[pivot_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
-        if let Some(left) = monitors[app.selected_idx].left {
-            monitors[pivot_idx].left = Some(left);
-            monitors[left].right = Some(pivot_idx);
+
+    match vert_dir {
+        Dir::Right => {
+            monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 + monitors[pivot_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
+            if let Some(left) = monitors[app.selected_idx].left {
+                monitors[left].position.1 = monitors[app.selected_idx].position.1;
+                monitors[pivot_idx].left = Some(left);
+                monitors[left].right = Some(pivot_idx);
+            }
+            monitors[pivot_idx].right = Some(app.selected_idx);
+            monitors[app.selected_idx].left = Some(pivot_idx);
         }
-        monitors[pivot_idx].right = Some(app.selected_idx);
-        monitors[app.selected_idx].left = Some(pivot_idx);
-    } else if vert_dir == Dir::Left {
-        let new_pos_1 = monitors[pivot_idx].position.0 - monitors[pivot_idx].displayed_resolution.0;
-        if new_pos_1 < 0 {
-            let difference = monitors[pivot_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0;
-            shift_mons(monitors, pivot_idx, difference, false, Vec::new());
+        Dir::Left => {
+            let new_pos_1 = monitors[pivot_idx].position.0 - monitors[pivot_idx].displayed_resolution.0;
+            if new_pos_1 < 0 {
+                let difference = monitors[pivot_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0;
+                shift_mons(monitors, pivot_idx, difference, false, Vec::new());
+            }
+            monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
+            let right = monitors[app.selected_idx].right;
+            if right.is_some() {
+                monitors[pivot_idx].right = monitors[app.selected_idx].right;
+                monitors[right.unwrap()].left = Some(pivot_idx);
+            }
+            monitors[pivot_idx].left = Some(app.selected_idx);
+            monitors[app.selected_idx].right = Some(pivot_idx);
         }
-        monitors[app.selected_idx].position = (monitors[pivot_idx].position.0 - monitors[app.selected_idx].displayed_resolution.0, monitors[pivot_idx].position.1);
-        let right = monitors[app.selected_idx].right;
-        if right.is_some() {
-            monitors[pivot_idx].right = monitors[app.selected_idx].right;
-            monitors[right.unwrap()].left = Some(pivot_idx);
-        }
-        monitors[pivot_idx].left = Some(app.selected_idx);
-        monitors[app.selected_idx].right = Some(pivot_idx);
+        _ => panic!("Vertical direction {:?} not supported in horizontal_push", dir),
     }
 
     update_neighbor_positions(monitors);
