@@ -172,17 +172,17 @@ pub fn shift_mons(monitors: &mut Monitors, current_idx: usize, difference: i32, 
 pub fn vert_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: Dir, app:App) {
     if dir == Dir::Left {
         monitors[app.selected_idx].left = None;
-        if monitors[app.selected_idx].right.is_some() {
-            let difference = monitors[monitors[app.selected_idx].right.unwrap()].position.0 - monitors[app.selected_idx].displayed_resolution.0;
-            shift_mons(monitors, monitors[app.selected_idx].right.unwrap(), difference, false, Vec::new());
+        if let Some(right_mon) = monitors[app.selected_idx].right {
+            let difference = monitors[right_mon].position.0 - monitors[app.selected_idx].displayed_resolution.0;
+            shift_mons(monitors, right_mon, difference, false, Vec::new());
         }
         monitors[pivot_idx].right = monitors[app.selected_idx].right;
         monitors[app.selected_idx].right = None;
     } else if dir == Dir::Right {
         monitors[app.selected_idx].right = None;
-        if monitors[app.selected_idx].left.is_some() {
-            let difference = monitors[monitors[app.selected_idx].left.unwrap()].position.0 - monitors[app.selected_idx].displayed_resolution.0;
-            shift_mons(monitors, monitors[app.selected_idx].left.unwrap(), difference, false, Vec::new());
+        if let Some(left_mon) = monitors[app.selected_idx].left {
+            let difference = monitors[left_mon].position.0 - monitors[app.selected_idx].displayed_resolution.0;
+            shift_mons(monitors, left_mon, difference, false, Vec::new());
         }
         monitors[pivot_idx].left = monitors[app.selected_idx].left;
         monitors[app.selected_idx].left = None;
@@ -200,6 +200,13 @@ pub fn vert_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: 
         if new_pos_1 < 0 {
             let difference = monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1;
             shift_mons(monitors, pivot_idx, difference, true, Vec::new());
+        }
+
+        // move monitors under vertical push down to fit new monitor in
+        if let Some(down_mon) = monitors[app.selected_idx].down {
+            shift_mons(monitors, down_mon, -1*monitors[pivot_idx].displayed_resolution.1, true, Vec::new());
+            let difference = monitors[down_mon].position.0 - monitors[pivot_idx].position.0;
+            shift_mons(monitors, down_mon, difference, false, Vec::new());
         }
         monitors[app.selected_idx].position = (monitors[pivot_idx].position.0, monitors[pivot_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1);
     }
