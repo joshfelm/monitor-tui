@@ -28,6 +28,7 @@ pub enum State {
     InfoEdit,
     DebugPopup,
     HelpPopup,
+    ConnectionPopup,
     Quit,
 }
 

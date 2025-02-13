@@ -128,6 +128,41 @@ fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
     f.render_widget(paragraph, popup_area);
 }
 
+fn render_connections_popup(f: &mut Frame, monitors: &Monitors) {
+    // Create a centered pop-up
+    let popup_area = centered_rect(60, 20, f.area());
+
+    let mut iterator = monitors.iter();
+    let mut args: Vec<(String, String)> = Vec::new();
+    while let Some(element) = iterator.next() {
+        args.push((element.name.to_string(), element.enabled.to_string()));
+    }
+
+    let info: Vec<Line> = args
+        .iter()
+        .map(|(name, enabled)| {
+            Line::from(vec![
+                Span::styled(
+                    format!("{}: {}", name, enabled),
+                    Style::default()
+                )
+            ])
+        })
+        .collect();
+
+    let info_block = Block::default()
+        .title("Commands (Main Mode)")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::LightBlue));
+
+    let connection_paragraph = Paragraph::new(info)
+        .block(info_block)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+
+    f.render_widget(connection_paragraph, popup_area);
+}
+
 fn render_help_popup(f: &mut Frame) {
     // help window with commands
     let help_popup_area = centered_rect(60, 20, f.area());
@@ -252,9 +287,10 @@ fn render_main_ui(f: &mut Frame, app: &App, monitors: &Monitors) {
 
 fn render_ui<B: ratatui::backend::Backend>(f: &mut Frame, app: &App, monitors: &Monitors) {
     match app.state {
-        State::DebugPopup   => render_debug_popup(f, monitors),
-        State::HelpPopup    => render_help_popup(f),
-        _                   => render_main_ui(f, app, monitors),
+        State::DebugPopup       => render_debug_popup(f, monitors),
+        State::HelpPopup        => render_help_popup(f),
+        State::ConnectionPopup  => render_connections_popup(f, monitors),
+        _                       => render_main_ui(f, app, monitors),
     }
 }
 
@@ -273,6 +309,11 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
             }
         }
         KeyCode::Char('q') => app.update_state(State::Quit),
+        KeyCode::Char('D') => {
+            if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
+                app.update_state(State::ConnectionPopup);
+            }
+        }
         // save: send to xrandr
         KeyCode::Char('s') => send_to_xrandr(&monitors, *app),
         KeyCode::Char('u') => {
@@ -354,7 +395,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         monitors[app.selected_idx].set_framerate(app.extra_entry);
                     }
                 }
-                State::DebugPopup | State::HelpPopup => app.update_state(app.previous_state),
+                State::DebugPopup | State::HelpPopup | State::ConnectionPopup => app.update_state(app.previous_state),
                 _ => {} //unimplemented
             }
         }
@@ -401,12 +442,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                 State::InfoEdit => {
                     app.update_state(State::MenuSelect);
                 }
-                State::DebugPopup => {
-                    app.update_state(app.previous_state);
-                }
-                State::HelpPopup => {
-                    app.update_state(app.previous_state);
-                }
+                State::DebugPopup | State::HelpPopup | State::ConnectionPopup => app.update_state(app.previous_state),
                 _ => {}
             }
         }
