@@ -128,7 +128,7 @@ fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
     f.render_widget(paragraph, popup_area);
 }
 
-fn render_connections_popup(f: &mut Frame, monitors: &Monitors) {
+fn render_connections_popup(f: &mut Frame, monitors: &Monitors, app: App) {
     // Create a centered pop-up
     let popup_area = centered_rect(60, 20, f.area());
 
@@ -140,11 +140,12 @@ fn render_connections_popup(f: &mut Frame, monitors: &Monitors) {
 
     let info: Vec<Line> = args
         .iter()
-        .map(|(name, enabled)| {
+        .enumerate()
+        .map(|(i, mon)| {
             Line::from(vec![
                 Span::styled(
-                    format!("{}: {}", name, if *enabled {"connected"} else {"disconnected"}),
-                    Style::default()
+                    format!("{}: {}", mon.0, if mon.1 {"connected"} else {"disconnected"}),
+                    if i == app.connected_monitor_id {  Style::default().fg(Color::Yellow) } else { Style::default() }
                 )
             ])
         })
@@ -289,7 +290,7 @@ fn render_ui<B: ratatui::backend::Backend>(f: &mut Frame, app: &App, monitors: &
     match app.state {
         State::DebugPopup       => render_debug_popup(f, monitors),
         State::HelpPopup        => render_help_popup(f),
-        State::ConnectionPopup  => render_connections_popup(f, monitors),
+        State::ConnectionPopup  => render_connections_popup(f, monitors, *app),
         _                       => render_main_ui(f, app, monitors),
     }
 }
