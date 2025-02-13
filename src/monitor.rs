@@ -232,12 +232,22 @@ pub fn vert_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: 
 pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert_dir: Dir, app:App) {
     match dir {
         Dir::Down => {
-            monitors[pivot_idx].up = monitors[app.selected_idx].up;
             monitors[app.selected_idx].down = None;
+            if let Some(down_idx) = monitors[app.selected_idx].down {
+                let difference = monitors[down_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1;
+                shift_mons(monitors, down_idx, difference, true, Vec::new());
+            }
+            monitors[pivot_idx].up = monitors[app.selected_idx].up;
+            monitors[app.selected_idx].up = None;
         }
         Dir::Up => {
-            monitors[pivot_idx].down = monitors[app.selected_idx].down;
             monitors[app.selected_idx].up = None;
+            if let Some(up_idx) = monitors[app.selected_idx].up {
+                let difference = monitors[up_idx].position.1 - monitors[app.selected_idx].displayed_resolution.1;
+                shift_mons(monitors, up_idx, difference, true, Vec::new());
+            }
+            monitors[pivot_idx].down = monitors[app.selected_idx].down;
+            monitors[app.selected_idx].down = None;
         }
         _ => panic!("Direction {:?} not supported in horizontal_push", dir),
     }
