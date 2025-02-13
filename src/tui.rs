@@ -607,27 +607,37 @@ fn send_to_xrandr(monitors: &Monitors, app: App) {
 
 fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
     if monitors[app.connected_monitor_id].enabled {
-        // disable connected monitor
         monitors[app.connected_monitor_id].enabled = false;
-
-        if let Some(right_idx) = monitors[app.connected_monitor_id].right {
-            monitors[right_idx].left = None;
-            let difference = monitors[app.connected_monitor_id].position.0 - monitors[right_idx].position.0;
-            shift_mons(monitors, right_idx, difference, false, Vec::new());
-        } else if let Some(down_idx) = monitors[app.connected_monitor_id].down {
-            let difference = monitors[app.connected_monitor_id].position.1 - monitors[down_idx].position.1;
-            monitors[down_idx].up = None;
-            shift_mons(monitors, down_idx, difference, true, Vec::new());
-        }
-
+        // disable connected monitor
         if app.current_idx == app.connected_monitor_id {
             let mut selected_idx = 0;
-            while !monitors[selected_idx].enabled && selected_idx < monitors.len() {
-                selected_idx += 1;
+            let mut enabled_mon = false;
+            while !enabled_mon && selected_idx < monitors.len() {
+                if monitors[selected_idx].enabled {
+                    enabled_mon = true;
+                } else {
+                    selected_idx += 1;
+                }
+            }
+            if !enabled_mon {
+                // don't let them disable the last monitor
+                monitors[app.connected_monitor_id].enabled = true;
+                return;
             }
             app.selected_idx = selected_idx;
             app.current_idx = selected_idx;
         }
+
+        if let Some(right_idx) = monitors[app.connected_monitor_id].right {
+            monitors[right_idx].left = None;
+            let difference = monitors[right_idx].position.0 - monitors[app.connected_monitor_id].position.0;
+            shift_mons(monitors, right_idx, difference, false, Vec::new());
+        } else if let Some(down_idx) = monitors[app.connected_monitor_id].down {
+            let difference = monitors[down_idx].position.1 - monitors[app.connected_monitor_id].position.1;
+            monitors[down_idx].up = None;
+            shift_mons(monitors, down_idx, difference, true, Vec::new());
+        }
+
         monitors[app.connected_monitor_id].position = (-1,-1);
         monitors[app.connected_monitor_id].resolution = (0,0);
 
