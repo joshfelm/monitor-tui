@@ -32,7 +32,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
 
     for line in xrandr_lines {
         // include ends with mm to make sure we only get monitors that are connected AND in use
-        if line.contains(" connected") && line.ends_with("mm") {
+        if line.contains(" connected") {
             // Push the previous monitor to the list if there was one
             if let Some(monitor) = current_monitor.take() {
                 monitors.push(Monitor {
@@ -45,6 +45,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
                     framerate: selected_framerate,
                     available_resolutions: current_resolutions,
                     is_selected: monitor.is_selected,
+                    enabled: monitor.enabled,
                     left: monitor.left,
                     right: monitor.right,
                     up: monitor.up,
@@ -55,11 +56,13 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
             // Reset for the next monitor
             current_resolutions = HashMap::new();
 
+            let is_enabled = line.ends_with("mm");
+
             // Parse monitor name and primary status
             let parts: Vec<&str> = line.split_whitespace().collect();
             let name = parts[0].to_string();
             let is_primary = parts.contains(&"primary");
-            let res_pos_part: Vec<&str> = if is_primary { parts[3].split("+").collect() } else { parts[2].split("+").collect() };
+            let res_pos_part: Vec<&str> = if is_primary { parts[3].split("+").collect() } else if !is_enabled { "0x0+0+0".split("+").collect() } else { parts[2].split("+").collect() };
             let resolution_part = res_pos_part[0];
             let position_part = res_pos_part[1];
 
@@ -83,6 +86,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
                 is_primary,
                 available_resolutions: HashMap::new(),
                 is_selected: false,
+                enabled: is_enabled,
                 left: None,
                 right: None,
                 up: None,
@@ -101,6 +105,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
                     is_primary: monitor.is_primary,
                     available_resolutions: current_resolutions,
                     is_selected: monitor.is_selected,
+                    enabled: monitor.enabled,
                     left: monitor.left,
                     right: monitor.right,
                     up: monitor.up,
@@ -165,6 +170,7 @@ pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
             is_primary: monitor.is_primary,
             available_resolutions: current_resolutions,
             is_selected: monitor.is_selected,
+            enabled: monitor.enabled,
             left: monitor.left,
             right: monitor.right,
             up: monitor.up,

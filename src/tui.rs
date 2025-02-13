@@ -28,6 +28,14 @@ fn main_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut monit
     // push a copy of the initial state to the history
     app_states.push((*monitors.clone()).to_vec());
 
+    let mut selected_idx = 0;
+    while !monitors[selected_idx].enabled && selected_idx < monitors.len() {
+        selected_idx += 1;
+    }
+
+    app.selected_idx = selected_idx;
+    app.current_idx = selected_idx;
+
     loop {
         terminal.draw(|f| render_ui::<B>(f, &app, &monitors))?;
 
@@ -757,14 +765,15 @@ fn draw_monitors(f: &mut ratatui::Frame, area: Rect, monitors: &[Monitor], app: 
     let scale_y = 0.5;
 
     let monitor_data: Vec<_> = monitors.iter().enumerate().map(|(i, m)| {
-        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.name.clone())
+        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.enabled, m.name.clone())
     }).collect();
 
     let canvas = Canvas::default()
         .x_bounds([0.0, total_width])
         .y_bounds([0.0, total_height])
         .paint(move |ctx| {
-            for (i, position, displayed_resolution, is_selected, is_primary, mut name) in monitor_data.iter().cloned() {
+            for (i, position, displayed_resolution, is_selected, is_primary, is_enabled, mut name) in monitor_data.iter().cloned() {
+                if !is_enabled { continue }
                 let x = position.0 as f64 * scale_x + total_width * (1.0 - scale_x)/2.0;
                 let y = total_height - (position.1 as f64 * scale_y + total_height * (1.0 - scale_y)/2.0);
                 let width = displayed_resolution.0 as f64 * scale_x;
