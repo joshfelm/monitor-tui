@@ -7,479 +7,669 @@ use crossterm::event::KeyCode;
 // swapping monitors without pushing
 mod swap {
     use super::*;
-    #[test]
-    fn swap_right() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+    mod positions {
+        use super::*;
 
-        handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (1920, 0));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (4480, 0));
-    }
+        #[test]
+        fn swap_right() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn swap_left() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (1920, 0));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (4480, 0));
+        }
 
-        app.current_idx = 1;
-        app.selected_idx = 1;
-        handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (1920, 0));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (4480, 0));
-    }
+        #[test]
+        fn swap_left() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn swap_down() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
+            app.current_idx = 1;
+            app.selected_idx = 1;
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (1920, 0));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (4480, 0));
+        }
 
-        //veritcal stack monitors
-        monitors[1].position = (0,1440);
-        monitors[2].position = (0,1440+1080);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_down() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (0, 1080));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (0, 1080+1440));
-    }
+            //veritcal stack monitors
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,1440+1080);
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn swap_up() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (0, 1080));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (0, 1080+1440));
+        }
 
-        //veritcal stack monitors
-        monitors[1].position = (0,1440);
-        monitors[2].position = (0,1440+1080);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_up() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-        app.current_idx = 1;
-        app.selected_idx = 1;
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (0, 1080));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (0, 1080+1440));
-    }
+            //veritcal stack monitors
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,1440+1080);
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn swap_different_resolutions_vertically_left() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            app.current_idx = 1;
+            app.selected_idx = 1;
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (0, 1080));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (0, 1080+1440));
+        }
 
-        monitors[0].position = (0,0);
-        monitors[1].position = (0,1440);
-        monitors[2].position = (1920,1440);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_different_resolutions_vertically_left() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 1, Dir::Down);
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (1920,1440);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].position, (0,0));
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].position, (0,1080));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].position, (2560,1080));
-    }
+            swap_monitors(&mut monitors, 0, 1, Dir::Down);
 
-    #[test]
-    fn swap_different_resolutions_vertically_right() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].position, (0,0));
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].position, (0,1080));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].position, (2560,1080));
+        }
 
-        monitors[0].position = (1920,0);
-        monitors[1].position = (0,1440);
-        monitors[2].position = (1920,1440);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_different_resolutions_vertically_right() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 2, Dir::Down);
+            monitors[0].position = (1920,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (1920,1440);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[0].position, (1920,0));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].position, (0,1080));
-        assert_eq!(monitors[2].name, "HDMI-1");
-        assert_eq!(monitors[2].position, (1920,1080));
-    }
+            swap_monitors(&mut monitors, 0, 2, Dir::Down);
 
-    #[test]
-    fn swap_different_resolutions_horizontally_up() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-2");
+            assert_eq!(monitors[0].position, (1920,0));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].position, (0,1080));
+            assert_eq!(monitors[2].name, "HDMI-1");
+            assert_eq!(monitors[2].position, (1920,1080));
+        }
 
-        monitors[0].position = (1920,0);
-        monitors[1].position = (0,0);
-        monitors[2].position = (0,1080);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_different_resolutions_horizontally_up() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 1, Dir::Left);
+            monitors[0].position = (1920,0);
+            monitors[1].position = (0,0);
+            monitors[2].position = (0,1080);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].position, (2560,0));
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].position, (0,0));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].position, (0,1440));
-    }
+            swap_monitors(&mut monitors, 0, 1, Dir::Left);
 
-    #[test]
-    fn swap_different_resolutions_horizontally_down() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].position, (2560,0));
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].position, (0,0));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].position, (0,1440));
+        }
 
-        monitors[0].position = (1920,1080);
-        monitors[1].position = (0,0);
-        monitors[2].position = (0,1080);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_different_resolutions_horizontally_down() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 2, Dir::Left);
+            monitors[0].position = (1920,1080);
+            monitors[1].position = (0,0);
+            monitors[2].position = (0,1080);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[0].position, (2560,1080));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].position, (0,0));
-        assert_eq!(monitors[2].name, "HDMI-1");
-        assert_eq!(monitors[2].position, (0,1080));
-    }
+            swap_monitors(&mut monitors, 0, 2, Dir::Left);
 
-    #[test]
-    fn swap_different_resolutions_down_adjust_left() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-2");
+            assert_eq!(monitors[0].position, (2560,1080));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].position, (0,0));
+            assert_eq!(monitors[2].name, "HDMI-1");
+            assert_eq!(monitors[2].position, (0,1080));
+        }
 
-        monitors[0].position = (1920,0);
-        monitors[1].position = (0,1440);
-        monitors[2].position = (1920,1440);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_different_resolutions_down_adjust_left() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 2, Dir::Down);
+            monitors[0].position = (1920,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (1920,1440);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].position, (1920,0));
-        assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[2].position, (1920,1080));
-        assert_eq!(monitors[2].name, "HDMI-1");
-        assert_eq!(monitors[1].position, (0,1080));
-        assert_eq!(monitors[1].name, "DP-1");
-    }
+            swap_monitors(&mut monitors, 0, 2, Dir::Down);
 
-    #[test]
-    fn swap_left_with_above() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].position, (1920,0));
+            assert_eq!(monitors[0].name, "DP-2");
+            assert_eq!(monitors[2].position, (1920,1080));
+            assert_eq!(monitors[2].name, "HDMI-1");
+            assert_eq!(monitors[1].position, (0,1080));
+            assert_eq!(monitors[1].name, "DP-1");
+        }
 
-        monitors[0].position = (1920,1080);
-        monitors[1].position = (0,1080);
-        monitors[2].position = (1920,0);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_left_with_above() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 1, Dir::Left);
+            monitors[0].position = (1920,1080);
+            monitors[1].position = (0,1080);
+            monitors[2].position = (1920,0);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].position, (2560,1080));
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].position, (0,1080));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].position, (2560,0));
-    }
+            swap_monitors(&mut monitors, 0, 1, Dir::Left);
 
-    #[test]
-    fn swap_right_with_above() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].position, (2560,1080));
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].position, (0,1080));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].position, (2560,0));
+        }
 
-        monitors[0].position = (1920,1080);
-        monitors[1].position = (0,1080);
-        monitors[2].position = (1920,0);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_right_with_above() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 1, 0, Dir::Right);
+            monitors[0].position = (1920,1080);
+            monitors[1].position = (0,1080);
+            monitors[2].position = (1920,0);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].position, (2560,1080));
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].position, (0,1080));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].position, (2560,0));
-    }
+            swap_monitors(&mut monitors, 1, 0, Dir::Right);
 
-    #[test]
-    fn swap_up_with_left() {
-        let mut monitors = get_monitor_info(true).unwrap();
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].position, (2560,1080));
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].position, (0,1080));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].position, (2560,0));
+        }
 
-        monitors[0].position = (1920,1080);
-        monitors[1].position = (0,0);
-        monitors[2].position = (1920,0);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn swap_up_with_left() {
+            let mut monitors = get_monitor_info(true).unwrap();
 
-        swap_monitors(&mut monitors, 0, 2, Dir::Up);
+            monitors[0].position = (1920,1080);
+            monitors[1].position = (0,0);
+            monitors[2].position = (1920,0);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "DP-2");
-        assert_eq!(monitors[0].position, (1920,1440));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].position, (0,0));
-        assert_eq!(monitors[2].name, "HDMI-1");
-        assert_eq!(monitors[2].position, (1920,0));
+            swap_monitors(&mut monitors, 0, 2, Dir::Up);
+
+            assert_eq!(monitors[0].name, "DP-2");
+            assert_eq!(monitors[0].position, (1920,1440));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].position, (0,0));
+            assert_eq!(monitors[2].name, "HDMI-1");
+            assert_eq!(monitors[2].position, (1920,0));
+        }
     }
 }
 
 // pushing monitors (popping from horizontal to vertical or vice versa)
 mod push {
     use super::*;
-    #[test]
-    fn vert_push_up() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+    mod positions {
+        use super::*;
 
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (2560, 1440));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].resolution, (1920, 1080));
-        assert_eq!(monitors[1].position, (0, 1440));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (1920, 1440));
-    }
+        #[test]
+        fn vert_push_up() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn vert_push_down() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (2560, 1440));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].resolution, (1920, 1080));
+            assert_eq!(monitors[1].position, (0, 1440));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (1920, 1440));
+        }
 
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].resolution, (2560, 1440));
-        assert_eq!(monitors[0].position, (0, 1080));
-        assert_eq!(monitors[1].resolution, (1920, 1080));
-        assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (1920, 0));
-    }
+        #[test]
+        fn vert_push_down() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn vert_push_up_from_middle() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].resolution, (2560, 1440));
+            assert_eq!(monitors[0].position, (0, 1080));
+            assert_eq!(monitors[1].resolution, (1920, 1080));
+            assert_eq!(monitors[1].position, (0, 0));
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (1920, 0));
+        }
 
-        app.current_idx = 1;
-        app.selected_idx = 1;
+        #[test]
+        fn vert_push_up_from_middle() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].name, "HDMI-1");
-        assert_eq!(monitors[0].resolution, (2560, 1440));
-        assert_eq!(monitors[0].position, (0, 1080));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].resolution, (1920, 1080));
-        assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (2560, 1080));
-    }
+            app.current_idx = 1;
+            app.selected_idx = 1;
 
-    #[test]
-    fn vert_push_down_from_middle() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].name, "HDMI-1");
+            assert_eq!(monitors[0].resolution, (2560, 1440));
+            assert_eq!(monitors[0].position, (0, 1080));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].resolution, (1920, 1080));
+            assert_eq!(monitors[1].position, (0, 0));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (2560, 1080));
+        }
 
-        app.current_idx = 1;
-        app.selected_idx = 1;
+        #[test]
+        fn vert_push_down_from_middle() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].name, "HDMI-1");
-        assert_eq!(monitors[0].resolution, (2560, 1440));
-        assert_eq!(monitors[0].position, (0, 0));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].resolution, (1920, 1080));
-        assert_eq!(monitors[1].position, (0, 1440));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (2560, 0));
-    }
+            app.current_idx = 1;
+            app.selected_idx = 1;
 
-    #[test]
-    fn vert_push_with_below() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].name, "HDMI-1");
+            assert_eq!(monitors[0].resolution, (2560, 1440));
+            assert_eq!(monitors[0].position, (0, 0));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].resolution, (1920, 1080));
+            assert_eq!(monitors[1].position, (0, 1440));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (2560, 0));
+        }
 
-        monitors[0].position = (1920,0);
-        monitors[1].position = (0,0);
-        monitors[2].position = (1920,1440);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn vert_push_with_below() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-        app.selected_idx = 0;
-        app.current_idx = 2;
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            monitors[0].position = (1920,0);
+            monitors[1].position = (0,0);
+            monitors[2].position = (1920,1440);
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].name, "HDMI-1");
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[0].position, (0,0));
-        assert_eq!(monitors[1].position, (0,1440));
-        assert_eq!(monitors[2].position, (0,1080+1440));
-    }
+            app.selected_idx = 0;
+            app.current_idx = 2;
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
 
-    #[test]
-    fn vert_push_right_with_below() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
+            assert_eq!(monitors[0].name, "HDMI-1");
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[0].position, (0,0));
+            assert_eq!(monitors[1].position, (0,1440));
+            assert_eq!(monitors[2].position, (0,1080+1440));
+        }
 
-        monitors[0].position = (0,0);
-        monitors[1].position = (0,1440);
-        monitors[2].position = (2560,0);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn vert_push_right_with_below() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].name, "HDMI-1");
-        assert_eq!(monitors[0].position, (0,0));
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[1].position, (0,1440+1080));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].position, (0,1440));
-    }
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (2560,0);
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn horizontal_push_right_with_above_and_left() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].name, "HDMI-1");
+            assert_eq!(monitors[0].position, (0,0));
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[1].position, (0,1440+1080));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].position, (0,1440));
+        }
 
-        monitors[0].position = (1920,1080);
-        monitors[1].position = (0,1080);
-        monitors[2].position = (1920,0);
-        monitor_proximity(&mut monitors);
+        #[test]
+        fn horizontal_push_right_with_above_and_left() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
 
-        handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].name, "HDMI-1");
-        assert_eq!(monitors[1].name, "DP-1");
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[0].position, (1920+1920,0));
-        assert_eq!(monitors[1].position, (0,0));
-        assert_eq!(monitors[2].position, (1920,0));
-    }
+            monitors[0].position = (1920,1080);
+            monitors[1].position = (0,1080);
+            monitors[2].position = (1920,0);
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn vert_triangle_down_position() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].name, "HDMI-1");
+            assert_eq!(monitors[1].name, "DP-1");
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[0].position, (1920+1920,0));
+            assert_eq!(monitors[1].position, (0,0));
+            assert_eq!(monitors[2].position, (1920,0));
+        }
 
-        // we expect this to look the same with the list in a different order.
-        // The order is irrelevant though, so we test for names to make sure
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (2560, 0));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (4480, 0));
-    }
+        #[test]
+        fn vert_triangle_down_position() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-    #[test]
-    fn vert_triangle_down_proximity() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+            // we expect this to look the same with the list in a different order.
+            // The order is irrelevant though, so we test for names to make sure
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (0, 0));
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (2560, 0));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (4480, 0));
+        }
 
-        // we expect this to look the same with the list in a different order.
-        // The order is irrelevant though, so we test for names to make sure
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(monitors[0].left, Some(1));
-        assert_eq!(monitors[0].right, Some(2));
-        assert_eq!(monitors[0].up, None);
-        assert_eq!(monitors[0].down, None);
+        #[test]
+        fn vert_triangle_up_position() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[1].left, None);
-        assert_eq!(monitors[1].right, Some(0));
-        assert_eq!(monitors[1].up, None);
-        assert_eq!(monitors[1].down, None);
+            // we expect this to look the same with the list in a different order.
+            // The order is irrelevant though, so we test for names to make sure
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
 
-        assert_eq!(monitors[2].left, Some(0));
-        assert_eq!(monitors[2].right, None);
-        assert_eq!(monitors[2].up, None);
-        assert_eq!(monitors[2].down, None);
-    }
+            assert_eq!(monitors[1].name, "HDMI-1");
+            assert_eq!(monitors[1].resolution, (2560, 1440));
+            assert_eq!(monitors[1].position, (0, 0));
+            assert_eq!(monitors[0].name, "DP-1");
+            assert_eq!(monitors[0].resolution, (1920, 1080));
+            assert_eq!(monitors[0].position, (2560, 0));
+            assert_eq!(monitors[2].name, "DP-2");
+            assert_eq!(monitors[2].resolution, (1920, 1080));
+            assert_eq!(monitors[2].position, (4480, 0));
 
-    #[test]
-    fn vert_triangle_up_position() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+        }
 
-        // we expect this to look the same with the list in a different order.
-        // The order is irrelevant though, so we test for names to make sure
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
-
-        assert_eq!(monitors[1].name, "HDMI-1");
-        assert_eq!(monitors[1].resolution, (2560, 1440));
-        assert_eq!(monitors[1].position, (0, 0));
-        assert_eq!(monitors[0].name, "DP-1");
-        assert_eq!(monitors[0].resolution, (1920, 1080));
-        assert_eq!(monitors[0].position, (2560, 0));
-        assert_eq!(monitors[2].name, "DP-2");
-        assert_eq!(monitors[2].resolution, (1920, 1080));
-        assert_eq!(monitors[2].position, (4480, 0));
 
     }
 
-    #[test]
-    fn vert_triangle_up_proximity() {
-        let mut app = App::new(State::MonitorSwap, true);
-        let mut monitors = get_monitor_info(true).unwrap();
-        let mut app_states: Vec<Monitors> = Vec::new();
-        monitor_proximity(&mut monitors);
+    mod proximity {
+        use super::*;
 
-        // we expect this to look the same with the list in a different order.
-        // The order is irrelevant though, so we test for names to make sure
-        handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+        #[test]
+        fn vert_triangle_up_proximity() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
 
-        assert_eq!(monitors[0].left, Some(1));
-        assert_eq!(monitors[0].right, Some(2));
-        assert_eq!(monitors[0].up, None);
-        assert_eq!(monitors[0].down, None);
+            // we expect this to look the same with the list in a different order.
+            // The order is irrelevant though, so we test for names to make sure
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
 
-        assert_eq!(monitors[1].left, None);
-        assert_eq!(monitors[1].right, Some(0));
-        assert_eq!(monitors[1].up, None);
-        assert_eq!(monitors[1].down, None);
+            assert_eq!(monitors[0].left, Some(1));
+            assert_eq!(monitors[0].right, Some(2));
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, None);
 
-        assert_eq!(monitors[2].left, Some(0));
-        assert_eq!(monitors[2].right, None);
-        assert_eq!(monitors[2].up, None);
-        assert_eq!(monitors[2].down, None);
+            assert_eq!(monitors[1].left, None);
+            assert_eq!(monitors[1].right, Some(0));
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, Some(0));
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, None);
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn vert_triangle_down_proximity() {
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+            monitor_proximity(&mut monitors);
+
+            // we expect this to look the same with the list in a different order.
+            // The order is irrelevant though, so we test for names to make sure
+            handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, Some(1));
+            assert_eq!(monitors[0].right, Some(2));
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, None);
+
+            assert_eq!(monitors[1].left, None);
+            assert_eq!(monitors[1].right, Some(0));
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, Some(0));
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, None);
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_top_left_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, None);
+            assert_eq!(monitors[0].right, Some(1));
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, None);
+
+            assert_eq!(monitors[1].left, Some(0));
+            assert_eq!(monitors[1].right, None);
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, Some(2));
+
+            assert_eq!(monitors[2].left, None);
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, Some(1));
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_top_right_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, Some(1));
+            assert_eq!(monitors[0].right, None);
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, None);
+
+            assert_eq!(monitors[1].left, None);
+            assert_eq!(monitors[1].right, Some(0));
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, Some(2));
+
+            assert_eq!(monitors[2].left, None);
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, Some(1));
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_middle_left_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            app.selected_idx = 1;
+            app.current_idx = 1;
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, Some(1));
+            assert_eq!(monitors[0].right, None);
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, Some(2));
+
+            assert_eq!(monitors[1].left, None);
+            assert_eq!(monitors[1].right, Some(0));
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, None);
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, Some(0));
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_middle_right_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            app.selected_idx = 1;
+            app.current_idx = 1;
+            handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, None);
+            assert_eq!(monitors[0].right, Some(1));
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, Some(2));
+
+            assert_eq!(monitors[1].left, Some(0));
+            assert_eq!(monitors[1].right, None);
+            assert_eq!(monitors[1].up, None);
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, None);
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, Some(0));
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_bottom_left_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            app.selected_idx = 2;
+            app.current_idx = 2;
+            handle_key_press(KeyCode::Char('h'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, None);
+            assert_eq!(monitors[0].right, None);
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, Some(1));
+
+            assert_eq!(monitors[1].left, Some(2));
+            assert_eq!(monitors[1].right, None);
+            assert_eq!(monitors[1].up, Some(0));
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, None);
+            assert_eq!(monitors[2].right, Some(1));
+            assert_eq!(monitors[2].up, None);
+            assert_eq!(monitors[2].down, None);
+        }
+
+        #[test]
+        fn horizontal_push_bottom_right_proximity(){
+            let mut app = App::new(State::MonitorSwap, true);
+            let mut monitors = get_monitor_info(true).unwrap();
+            let mut app_states: Vec<Monitors> = Vec::new();
+
+            monitors[0].position = (0,0);
+            monitors[1].position = (0,1440);
+            monitors[2].position = (0,2520);
+            monitor_proximity(&mut monitors);
+
+            app.selected_idx = 2;
+            app.current_idx = 2;
+            handle_key_press(KeyCode::Char('l'), &mut monitors, &mut app, &mut app_states);
+            assert_eq!(monitors[0].left, None);
+            assert_eq!(monitors[0].right, None);
+            assert_eq!(monitors[0].up, None);
+            assert_eq!(monitors[0].down, Some(1));
+
+            assert_eq!(monitors[1].left, None);
+            assert_eq!(monitors[1].right, Some(2));
+            assert_eq!(monitors[1].up, Some(0));
+            assert_eq!(monitors[1].down, None);
+
+            assert_eq!(monitors[2].left, Some(1));
+            assert_eq!(monitors[2].right, None);
+            assert_eq!(monitors[2].up, None);
+            assert_eq!(monitors[2].down, None);
+        }
     }
 }
