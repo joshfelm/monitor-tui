@@ -133,9 +133,9 @@ fn render_connections_popup(f: &mut Frame, monitors: &Monitors) {
     let popup_area = centered_rect(60, 20, f.area());
 
     let mut iterator = monitors.iter();
-    let mut args: Vec<(String, String)> = Vec::new();
+    let mut args: Vec<(String, bool)> = Vec::new();
     while let Some(element) = iterator.next() {
-        args.push((element.name.to_string(), element.enabled.to_string()));
+        args.push((element.name.to_string(), element.enabled));
     }
 
     let info: Vec<Line> = args
@@ -143,20 +143,20 @@ fn render_connections_popup(f: &mut Frame, monitors: &Monitors) {
         .map(|(name, enabled)| {
             Line::from(vec![
                 Span::styled(
-                    format!("{}: {}", name, enabled),
+                    format!("{}: {}", name, if *enabled {"connected"} else {"disconnected"}),
                     Style::default()
                 )
             ])
         })
         .collect();
 
-    let info_block = Block::default()
-        .title("Commands (Main Mode)")
+    let connection_block = Block::default()
+        .title("Connected monitors")
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::LightBlue));
 
     let connection_paragraph = Paragraph::new(info)
-        .block(info_block)
+        .block(connection_block)
         .style(Style::default().fg(Color::White))
         .wrap(ratatui::widgets::Wrap { trim: true });
 
@@ -341,16 +341,17 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
             }
         }
 
-        // verticalmuct movement
+        // vertical movement
         KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
             let is_down = matches!(key, KeyCode::Char('j') | KeyCode::Down);
             let direction = if is_down { Dir::Down } else { Dir::Up };
 
             match app.state {
-                State::MonitorEdit  => handle_monitor_edit(&mut app, &mut monitors, direction),
-                State::MonitorSwap  => handle_monitor_swap(&mut app, &mut monitors, direction),
-                State::MenuSelect   => handle_menu_select(&mut app, is_down),
-                State::InfoEdit     => handle_info_edit(&mut app, &monitors, is_down),
+                State::MonitorEdit      => handle_monitor_edit(&mut app, &mut monitors, direction),
+                State::MonitorSwap      => handle_monitor_swap(&mut app, &mut monitors, direction),
+                State::MenuSelect       => handle_menu_select(&mut app, is_down),
+                State::InfoEdit         => handle_info_edit(&mut app, &monitors, is_down),
+                State::ConnectionPopup  => handle_connection_edit(&mut app, monitors, is_down),
                 _ => {} // Unimplemented
             }
         }
@@ -395,7 +396,8 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                         monitors[app.selected_idx].set_framerate(app.extra_entry);
                     }
                 }
-                State::DebugPopup | State::HelpPopup | State::ConnectionPopup => app.update_state(app.previous_state),
+                State::DebugPopup | State::HelpPopup => app.update_state(app.previous_state),
+                State::ConnectionPopup => handle_monitor_connection_change(&mut app, &mut monitors),
                 _ => {} //unimplemented
             }
         }
@@ -599,6 +601,46 @@ fn send_to_xrandr(monitors: &Monitors, app: App) {
             .expect("failed to execute process");
 
         println!("{:?}", output);
+    }
+}
+
+fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
+    if monitors[app.connected_monitor_id].enabled {
+        // disable connected monitor
+    } else {
+        // connect disabled monitor
+        monitors[app.connected_monitor_id].enabled = true;
+
+        //find rightmost monitor on first row, and connect it there
+        let right_idx = find_rightmost_monitor(monitors, app.current_idx);
+        let new_position = (
+            monitors[right_idx].position.0 + monitors[right_idx].resolution.0,
+            monitors[right_idx].position.1
+        );
+        monitors[app.connected_monitor_id].position = new_position;
+        let _resolutions = &monitors[app.connected_monitor_id].available_resolutions;
+        let _sorted_resolutions = monitors[app.connected_monitor_id].sort_resolutions();
+        let new_res = monitors[app.connected_monitor_id].sort_resolutions()[0];
+        monitors[app.connected_monitor_id].resolution = *new_res;
+        monitors[app.connected_monitor_id].scale = 1.0;
+        monitors[app.connected_monitor_id].update_scale();
+        monitor_proximity(monitors);
+    }
+}
+
+fn find_rightmost_monitor(monitors: &Monitors, idx: usize) -> usize {
+    if let Some(right_idx) = monitors[idx].right {
+        return find_rightmost_monitor(monitors, right_idx);
+    } else {
+        return idx;
+    }
+}
+
+fn handle_connection_edit(app: &mut App, monitors: &Monitors, is_down: bool) {
+    if is_down && app.connected_monitor_id < monitors.len() {
+        app.connected_monitor_id += 1;
+    } else if !is_down && app.connected_monitor_id > 0 {
+        app.connected_monitor_id -= 1;
     }
 }
 
