@@ -29,7 +29,7 @@ fn main_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut monit
     app_states.push((*monitors.clone()).to_vec());
 
     let mut selected_idx = 0;
-    while !monitors[selected_idx].enabled && selected_idx < monitors.len() {
+    while !monitors[selected_idx].is_enabled && selected_idx < monitors.len() {
         selected_idx += 1;
     }
 
@@ -120,7 +120,7 @@ fn render_connections_popup(f: &mut Frame, monitors: &Monitors, app: App) {
     let mut iterator = monitors.iter();
     let mut args: Vec<(String, bool)> = Vec::new();
     while let Some(element) = iterator.next() {
-        args.push((element.name.to_string(), element.enabled));
+        args.push((element.name.to_string(), element.is_enabled));
     }
 
     let info: Vec<Line> = args
@@ -584,7 +584,7 @@ fn convert_monitors_to_args(monitors: &Monitors, debug: bool) -> Vec<String> {
     let mut args: Vec<String> = Vec::new();
     let mut iterator = monitors.iter();
     while let Some(element) = iterator.next() {
-        if !element.enabled { continue; }
+        if !element.is_enabled { continue; }
         if debug { args.push("\n> ".to_string()); }
         args.push("--output".to_string());
         args.push(element.name.to_string());
@@ -603,14 +603,14 @@ fn convert_monitors_to_args(monitors: &Monitors, debug: bool) -> Vec<String> {
 }
 
 fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
-    if monitors[app.connected_monitor_id].enabled {
-        monitors[app.connected_monitor_id].enabled = false;
+    if monitors[app.connected_monitor_id].is_enabled {
+        monitors[app.connected_monitor_id].is_enabled = false;
         // disable connected monitor
         if app.selected_idx == app.connected_monitor_id || app.current_idx == app.connected_monitor_id {
             let mut selected_idx = 0;
             let mut enabled_mon = false;
             while !enabled_mon && selected_idx < monitors.len() {
-                if monitors[selected_idx].enabled {
+                if monitors[selected_idx].is_enabled {
                     enabled_mon = true;
                 } else {
                     selected_idx += 1;
@@ -618,7 +618,7 @@ fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
             }
             if !enabled_mon {
                 // don't let them disable the last monitor
-                monitors[app.connected_monitor_id].enabled = true;
+                monitors[app.connected_monitor_id].is_enabled = true;
                 return;
             }
             app.selected_idx = selected_idx;
@@ -649,7 +649,7 @@ fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
         update_neighbor_positions(monitors);
     } else {
         // connect disabled monitor
-        monitors[app.connected_monitor_id].enabled = true;
+        monitors[app.connected_monitor_id].is_enabled = true;
 
         //find rightmost monitor on first row, and connect it there
         let right_idx = find_rightmost_monitor(monitors, app.current_idx);
@@ -883,7 +883,7 @@ fn draw_monitors(f: &mut ratatui::Frame, area: Rect, monitors: &[Monitor], app: 
     let scale_y = 0.5;
 
     let monitor_data: Vec<_> = monitors.iter().enumerate().map(|(i, m)| {
-        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.enabled, m.name.clone())
+        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.is_enabled, m.name.clone())
     }).collect();
 
     let canvas = Canvas::default()

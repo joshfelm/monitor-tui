@@ -14,7 +14,7 @@ pub struct Monitor {
     pub position: (i32, i32),
     pub is_primary: bool,
     pub is_selected: bool,
-    pub enabled: bool,                                          // is current monitor being displayed?
+    pub is_enabled: bool,                                          // is current monitor being displayed?
     pub left: Option<usize>,
     pub right: Option<usize>,
     pub up: Option<usize>,
@@ -112,7 +112,7 @@ pub fn swap_monitors(
 // touch up right and below neighbours
 pub fn update_neighbor_positions(monitors: &mut Monitors) {
     for i in 0..monitors.len() {
-        if !monitors[i].enabled {continue}
+        if !monitors[i].is_enabled {continue}
         let right = monitors[i].right;
         let down = monitors[i].down;
         if let Some(right_index) = right {
@@ -296,7 +296,7 @@ pub fn horizontal_push(monitors: &mut Monitors, pivot_idx: usize, dir: Dir, vert
 pub fn monitor_proximity(monitors: &mut Monitors) {
     for i in 0..monitors.len() {
         for j in 0..monitors.len() {
-            if i == j || !monitors[i].enabled || !monitors[j].enabled {
+            if i == j || !monitors[i].is_enabled || !monitors[j].is_enabled {
                 continue;
             }
 
