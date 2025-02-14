@@ -610,7 +610,7 @@ fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
     if monitors[app.connected_monitor_id].enabled {
         monitors[app.connected_monitor_id].enabled = false;
         // disable connected monitor
-        if app.current_idx == app.connected_monitor_id {
+        if app.selected_idx == app.connected_monitor_id || app.current_idx == app.connected_monitor_id {
             let mut selected_idx = 0;
             let mut enabled_mon = false;
             while !enabled_mon && selected_idx < monitors.len() {
