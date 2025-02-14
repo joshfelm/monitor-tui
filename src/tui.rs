@@ -176,6 +176,7 @@ fn render_help_popup(f: &mut Frame) {
         ("s", "Apply saved changes"),
         ("u", "Undo last change"),
         ("d", "Preview xrandr command"),
+        ("D", "Connect/disconnect monitors"),
     ]};
 
     let info: Vec<Line> = commands
