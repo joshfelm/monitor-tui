@@ -100,22 +100,7 @@ fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::White).bg(Color::Black));
 
-    let mut iterator = monitors.iter();
-    let mut args: Vec<String> = Vec::new();
-    while let Some(element) = iterator.next() {
-        args.push("\n> ".to_string());
-        args.push("--output".to_string());
-        args.push(element.name.to_string());
-        if element.is_primary { args.push("--primary".to_string()); }
-        args.push("--mode".to_string());
-        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
-        args.push("--rate".to_string());
-        args.push(element.framerate.to_string());
-        args.push("--pos".to_string());
-        args.push(format!("{}x{}", element.position.0, element.position.1));
-        args.push("--scale".to_string());
-        args.push(format!("{:.2}", element.scale));
-    };
+    let args: Vec<String> = convert_monitors_to_args(monitors, true);
 
     let command = format!("xrandr {}", args.join(" "));
 
@@ -460,9 +445,12 @@ fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
         app.selected_idx = new_idx;
 
         if matches!(app.state, State::MonitorSwap) {
-            app.extra_entry = 0;
             swap_monitors(monitors, app.current_idx, new_idx, direction);
             app.current_idx = new_idx;
+        } else {
+            // reset menu entries when changing monitors
+            app.extra_entry = 0;
+            app.menu_entry = MenuEntry::Name;
         }
     }
 }
@@ -580,21 +568,7 @@ fn find_vertical_pivot(monitors: &Monitors, idx: usize, direction: Dir) -> Optio
 
 fn send_to_xrandr(monitors: &Monitors, app: App) {
     if !app.debug && matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
-        let mut iterator = monitors.iter();
-        let mut args: Vec<String> = Vec::new();
-        while let Some(element) = iterator.next() {
-            args.push("--output".to_string());
-            args.push(element.name.to_string());
-            if element.is_primary { args.push("--primary".to_string()); }
-            args.push("--mode".to_string());
-            args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
-            args.push("--rate".to_string());
-            args.push(element.framerate.to_string());
-            args.push("--pos".to_string());
-            args.push(format!("{}x{}", element.position.0, element.position.1));
-            args.push("--scale".to_string());
-            args.push(format!("{:.2}", element.scale));
-        };
+        let args = convert_monitors_to_args(monitors, false);
 
         // TODO: display this in a popup
         let output = Command::new("xrandr")
@@ -604,6 +578,28 @@ fn send_to_xrandr(monitors: &Monitors, app: App) {
 
         println!("{:?}", output);
     }
+}
+
+fn convert_monitors_to_args(monitors: &Monitors, debug: bool) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    let mut iterator = monitors.iter();
+    while let Some(element) = iterator.next() {
+        if !element.enabled { continue; }
+        if debug { args.push("\n> ".to_string()); }
+        args.push("--output".to_string());
+        args.push(element.name.to_string());
+        if element.is_primary { args.push("--primary".to_string()); }
+        args.push("--mode".to_string());
+        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
+        args.push("--rate".to_string());
+        args.push(element.framerate.to_string());
+        args.push("--pos".to_string());
+        args.push(format!("{}x{}", element.position.0, element.position.1));
+        args.push("--scale".to_string());
+        args.push(format!("{:.2}", element.scale));
+    };
+
+    return args;
 }
 
 fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
