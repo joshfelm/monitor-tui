@@ -16,7 +16,7 @@ layout for testing purposes
 
 ## Todo
 - [x] Help window
-- [ ] Handle disconnected monitors
+- [x] Handle disconnected monitors
 - [x] Modify refresh rate
 - [x] Modify resolution
 - [ ] Presets (horizontal, vertical, defaults, etc)
@@ -26,3 +26,4 @@ layout for testing purposes
 - [x] Add debug mode
 - [x] Update TUI to ratatui (why did I choose TUI when it's not
       maintained.....)
+- [ ] Add incremental position changes

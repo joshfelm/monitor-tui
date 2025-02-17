@@ -28,6 +28,7 @@ pub enum State {
     InfoEdit,
     DebugPopup,
     HelpPopup,
+    ConnectionPopup,
     Quit,
 }
 
@@ -41,6 +42,7 @@ pub struct App {
     pub menu_entry: MenuEntry,
     pub extra_entry: usize,
     pub debug: bool,
+    pub connected_monitor_id: usize,
 }
 
 impl App {
@@ -55,6 +57,7 @@ impl App {
             menu_entry: MenuEntry::Name,
             extra_entry: 0,
             debug: dbg,
+            connected_monitor_id: 0,
         }
     }
 

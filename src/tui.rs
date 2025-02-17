@@ -28,6 +28,14 @@ fn main_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut monit
     // push a copy of the initial state to the history
     app_states.push((*monitors.clone()).to_vec());
 
+    let mut selected_idx = 0;
+    while !monitors[selected_idx].is_enabled && selected_idx < monitors.len() {
+        selected_idx += 1;
+    }
+
+    app.selected_idx = selected_idx;
+    app.current_idx = selected_idx;
+
     loop {
         terminal.draw(|f| render_ui::<B>(f, &app, &monitors))?;
 
@@ -92,22 +100,7 @@ fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
         .borders(Borders::ALL)
         .style(Style::default().fg(Color::White).bg(Color::Black));
 
-    let mut iterator = monitors.iter();
-    let mut args: Vec<String> = Vec::new();
-    while let Some(element) = iterator.next() {
-        args.push("\n> ".to_string());
-        args.push("--output".to_string());
-        args.push(element.name.to_string());
-        if element.is_primary { args.push("--primary".to_string()); }
-        args.push("--mode".to_string());
-        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
-        args.push("--rate".to_string());
-        args.push(element.framerate.to_string());
-        args.push("--pos".to_string());
-        args.push(format!("{}x{}", element.position.0, element.position.1));
-        args.push("--scale".to_string());
-        args.push(format!("{:.2}", element.scale));
-    };
+    let args: Vec<String> = convert_monitors_to_args(monitors, true);
 
     let command = format!("xrandr {}", args.join(" "));
 
@@ -118,6 +111,42 @@ fn render_debug_popup(f: &mut Frame, monitors: &Monitors) {
         .wrap(Wrap {trim: true });
 
     f.render_widget(paragraph, popup_area);
+}
+
+fn render_connections_popup(f: &mut Frame, monitors: &Monitors, app: App) {
+    // Create a centered pop-up
+    let popup_area = centered_rect(60, 20, f.area());
+
+    let mut iterator = monitors.iter();
+    let mut args: Vec<(String, bool)> = Vec::new();
+    while let Some(element) = iterator.next() {
+        args.push((element.name.to_string(), element.is_enabled));
+    }
+
+    let info: Vec<Line> = args
+        .iter()
+        .enumerate()
+        .map(|(i, mon)| {
+            Line::from(vec![
+                Span::styled(
+                    format!("{}: {}", mon.0, if mon.1 {"connected"} else {"disconnected"}),
+                    if i == app.connected_monitor_id {  Style::default().fg(Color::Yellow) } else { Style::default() }
+                )
+            ])
+        })
+        .collect();
+
+    let connection_block = Block::default()
+        .title("Connected monitors")
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::LightBlue));
+
+    let connection_paragraph = Paragraph::new(info)
+        .block(connection_block)
+        .style(Style::default().fg(Color::White))
+        .wrap(ratatui::widgets::Wrap { trim: true });
+
+    f.render_widget(connection_paragraph, popup_area);
 }
 
 fn render_help_popup(f: &mut Frame) {
@@ -132,6 +161,7 @@ fn render_help_popup(f: &mut Frame) {
         ("s", "Apply saved changes"),
         ("u", "Undo last change"),
         ("d", "Preview xrandr command"),
+        ("D", "Connect/disconnect monitors"),
     ]};
 
     let info: Vec<Line> = commands
@@ -244,9 +274,10 @@ fn render_main_ui(f: &mut Frame, app: &App, monitors: &Monitors) {
 
 fn render_ui<B: ratatui::backend::Backend>(f: &mut Frame, app: &App, monitors: &Monitors) {
     match app.state {
-        State::DebugPopup   => render_debug_popup(f, monitors),
-        State::HelpPopup    => render_help_popup(f),
-        _                   => render_main_ui(f, app, monitors),
+        State::DebugPopup       => render_debug_popup(f, monitors),
+        State::HelpPopup        => render_help_popup(f),
+        State::ConnectionPopup  => render_connections_popup(f, monitors, *app),
+        _                       => render_main_ui(f, app, monitors),
     }
 }
 
@@ -265,6 +296,11 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
             }
         }
         KeyCode::Char('q') => app.update_state(State::Quit),
+        KeyCode::Char('D') => {
+            if matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
+                app.update_state(State::ConnectionPopup);
+            }
+        }
         // save: send to xrandr
         KeyCode::Char('s') => send_to_xrandr(&monitors, *app),
         KeyCode::Char('u') => {
@@ -292,16 +328,17 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
             }
         }
 
-        // verticalmuct movement
+        // vertical movement
         KeyCode::Char('j') | KeyCode::Char('k') | KeyCode::Up | KeyCode::Down => {
             let is_down = matches!(key, KeyCode::Char('j') | KeyCode::Down);
             let direction = if is_down { Dir::Down } else { Dir::Up };
 
             match app.state {
-                State::MonitorEdit  => handle_monitor_edit(&mut app, &mut monitors, direction),
-                State::MonitorSwap  => handle_monitor_swap(&mut app, &mut monitors, direction),
-                State::MenuSelect   => handle_menu_select(&mut app, is_down),
-                State::InfoEdit     => handle_info_edit(&mut app, &monitors, is_down),
+                State::MonitorEdit      => handle_monitor_edit(&mut app, &mut monitors, direction),
+                State::MonitorSwap      => handle_monitor_swap(&mut app, &mut monitors, direction),
+                State::MenuSelect       => handle_menu_select(&mut app, is_down),
+                State::InfoEdit         => handle_info_edit(&mut app, &monitors, is_down),
+                State::ConnectionPopup  => handle_connection_edit(&mut app, monitors, is_down),
                 _ => {} // Unimplemented
             }
         }
@@ -347,6 +384,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                     }
                 }
                 State::DebugPopup | State::HelpPopup => app.update_state(app.previous_state),
+                State::ConnectionPopup => handle_monitor_connection_change(&mut app, &mut monitors),
                 _ => {} //unimplemented
             }
         }
@@ -393,12 +431,7 @@ pub fn handle_key_press(key: KeyCode, mut monitors: &mut Monitors, mut app: &mut
                 State::InfoEdit => {
                     app.update_state(State::MenuSelect);
                 }
-                State::DebugPopup => {
-                    app.update_state(app.previous_state);
-                }
-                State::HelpPopup => {
-                    app.update_state(app.previous_state);
-                }
+                State::DebugPopup | State::HelpPopup | State::ConnectionPopup => app.update_state(app.previous_state),
                 _ => {}
             }
         }
@@ -412,9 +445,12 @@ fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
         app.selected_idx = new_idx;
 
         if matches!(app.state, State::MonitorSwap) {
-            app.extra_entry = 0;
             swap_monitors(monitors, app.current_idx, new_idx, direction);
             app.current_idx = new_idx;
+        } else {
+            // reset menu entries when changing monitors
+            app.extra_entry = 0;
+            app.menu_entry = MenuEntry::Name;
         }
     }
 }
@@ -532,21 +568,7 @@ fn find_vertical_pivot(monitors: &Monitors, idx: usize, direction: Dir) -> Optio
 
 fn send_to_xrandr(monitors: &Monitors, app: App) {
     if !app.debug && matches!(app.state, State::MonitorEdit | State::MonitorSwap | State::MenuSelect | State::InfoEdit) {
-        let mut iterator = monitors.iter();
-        let mut args: Vec<String> = Vec::new();
-        while let Some(element) = iterator.next() {
-            args.push("--output".to_string());
-            args.push(element.name.to_string());
-            if element.is_primary { args.push("--primary".to_string()); }
-            args.push("--mode".to_string());
-            args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
-            args.push("--rate".to_string());
-            args.push(element.framerate.to_string());
-            args.push("--pos".to_string());
-            args.push(format!("{}x{}", element.position.0, element.position.1));
-            args.push("--scale".to_string());
-            args.push(format!("{:.2}", element.scale));
-        };
+        let args = convert_monitors_to_args(monitors, false);
 
         // TODO: display this in a popup
         let output = Command::new("xrandr")
@@ -555,6 +577,110 @@ fn send_to_xrandr(monitors: &Monitors, app: App) {
             .expect("failed to execute process");
 
         println!("{:?}", output);
+    }
+}
+
+fn convert_monitors_to_args(monitors: &Monitors, debug: bool) -> Vec<String> {
+    let mut args: Vec<String> = Vec::new();
+    let mut iterator = monitors.iter();
+    while let Some(element) = iterator.next() {
+        if !element.is_enabled { continue; }
+        if debug { args.push("\n> ".to_string()); }
+        args.push("--output".to_string());
+        args.push(element.name.to_string());
+        if element.is_primary { args.push("--primary".to_string()); }
+        args.push("--mode".to_string());
+        args.push(format!("{}x{}", element.resolution.0, element.resolution.1));
+        args.push("--rate".to_string());
+        args.push(element.framerate.to_string());
+        args.push("--pos".to_string());
+        args.push(format!("{}x{}", element.position.0, element.position.1));
+        args.push("--scale".to_string());
+        args.push(format!("{:.2}", element.scale));
+    };
+
+    return args;
+}
+
+fn handle_monitor_connection_change(app: &mut App, monitors: &mut Monitors) {
+    if monitors[app.connected_monitor_id].is_enabled {
+        monitors[app.connected_monitor_id].is_enabled = false;
+        // disable connected monitor
+        if app.selected_idx == app.connected_monitor_id || app.current_idx == app.connected_monitor_id {
+            let mut selected_idx = 0;
+            let mut enabled_mon = false;
+            while !enabled_mon && selected_idx < monitors.len() {
+                if monitors[selected_idx].is_enabled {
+                    enabled_mon = true;
+                } else {
+                    selected_idx += 1;
+                }
+            }
+            if !enabled_mon {
+                // don't let them disable the last monitor
+                monitors[app.connected_monitor_id].is_enabled = true;
+                return;
+            }
+            app.selected_idx = selected_idx;
+            app.current_idx = selected_idx;
+        }
+
+        if let Some(right_idx) = monitors[app.connected_monitor_id].right {
+            monitors[right_idx].left = None;
+            let difference = monitors[right_idx].position.0 - monitors[app.connected_monitor_id].position.0;
+            shift_mons(monitors, right_idx, difference, false, Vec::new());
+        } else if let Some(down_idx) = monitors[app.connected_monitor_id].down {
+            let difference = monitors[down_idx].position.1 - monitors[app.connected_monitor_id].position.1;
+            monitors[down_idx].up = None;
+            shift_mons(monitors, down_idx, difference, true, Vec::new());
+        }
+
+        monitors[app.connected_monitor_id].position = (-1,-1);
+        monitors[app.connected_monitor_id].resolution = (0,0);
+
+        // purge this monitor from existence
+        if let Some(idx) = monitors[app.connected_monitor_id].right { monitors[idx].left = None }
+        if let Some(idx) = monitors[app.connected_monitor_id].left { monitors[idx].right = None }
+        if let Some(idx) = monitors[app.connected_monitor_id].down { monitors[idx].up = None }
+        if let Some(idx) = monitors[app.connected_monitor_id].up { monitors[idx].down = None }
+
+        monitor_proximity(monitors);
+
+        update_neighbor_positions(monitors);
+    } else {
+        // connect disabled monitor
+        monitors[app.connected_monitor_id].is_enabled = true;
+
+        //find rightmost monitor on first row, and connect it there
+        let right_idx = find_rightmost_monitor(monitors, app.current_idx);
+        let new_position = (
+            monitors[right_idx].position.0 + monitors[right_idx].resolution.0,
+            monitors[right_idx].position.1
+        );
+        monitors[app.connected_monitor_id].position = new_position;
+        let _resolutions = &monitors[app.connected_monitor_id].available_resolutions;
+        let _sorted_resolutions = monitors[app.connected_monitor_id].sort_resolutions();
+        let new_res = monitors[app.connected_monitor_id].sort_resolutions()[0];
+        monitors[app.connected_monitor_id].resolution = *new_res;
+        monitors[app.connected_monitor_id].scale = 1.0;
+        monitors[app.connected_monitor_id].update_scale();
+        monitor_proximity(monitors);
+    }
+}
+
+fn find_rightmost_monitor(monitors: &Monitors, idx: usize) -> usize {
+    if let Some(right_idx) = monitors[idx].right {
+        return find_rightmost_monitor(monitors, right_idx);
+    } else {
+        return idx;
+    }
+}
+
+fn handle_connection_edit(app: &mut App, monitors: &Monitors, is_down: bool) {
+    if is_down && app.connected_monitor_id < monitors.len() {
+        app.connected_monitor_id += 1;
+    } else if !is_down && app.connected_monitor_id > 0 {
+        app.connected_monitor_id -= 1;
     }
 }
 
@@ -757,14 +883,15 @@ fn draw_monitors(f: &mut ratatui::Frame, area: Rect, monitors: &[Monitor], app: 
     let scale_y = 0.5;
 
     let monitor_data: Vec<_> = monitors.iter().enumerate().map(|(i, m)| {
-        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.name.clone())
+        (i, m.position, m.displayed_resolution, m.is_selected, m.is_primary, m.is_enabled, m.name.clone())
     }).collect();
 
     let canvas = Canvas::default()
         .x_bounds([0.0, total_width])
         .y_bounds([0.0, total_height])
         .paint(move |ctx| {
-            for (i, position, displayed_resolution, is_selected, is_primary, mut name) in monitor_data.iter().cloned() {
+            for (i, position, displayed_resolution, is_selected, is_primary, is_enabled, mut name) in monitor_data.iter().cloned() {
+                if !is_enabled { continue }
                 let x = position.0 as f64 * scale_x + total_width * (1.0 - scale_x)/2.0;
                 let y = total_height - (position.1 as f64 * scale_y + total_height * (1.0 - scale_y)/2.0);
                 let width = displayed_resolution.0 as f64 * scale_x;
