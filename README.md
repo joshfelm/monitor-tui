@@ -1,5 +1,9 @@
 # Monitor-tui
 
+A suite to modify your monitor setup in the terminal using Rust.
+
+![recording](https://raw.githubusercontent.com/joshfelm/monitor-tui/main/screenshots/usage.gif)
+
 Ever wanted to change your monitor layout in your terminal using a GUI?
 No? Well here's an app that will let you do it anyway.
 
