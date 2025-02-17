@@ -62,11 +62,11 @@ mod menu {
         let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
-        assert_eq!(app.menu_entry, MenuEntry::Name);
+        assert_eq!(app.menu_entry, MenuEntry::Position);
 
         // make sure we don't underflow
         handle_key_press(KeyCode::Char('k'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(app.menu_entry, MenuEntry::Name);
+        assert_eq!(app.menu_entry, MenuEntry::Position);
     }
 
     #[test]
@@ -76,7 +76,7 @@ mod menu {
         let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
-        assert_eq!(app.menu_entry, MenuEntry::Name);
+        assert_eq!(app.menu_entry, MenuEntry::Position);
 
         app.menu_entry = MenuEntry::Resolutions;
 
@@ -92,19 +92,17 @@ mod menu {
         let mut app_states: Vec<Monitors> = Vec::new();
         monitor_proximity(&mut monitors);
 
-        assert_eq!(app.menu_entry, MenuEntry::Name);
+        assert_eq!(app.menu_entry, MenuEntry::Position);
 
         // make sure we don't underflow
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
         assert_eq!(app.menu_entry, MenuEntry::Resolution);
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
+        assert_eq!(app.menu_entry, MenuEntry::Framerate);
+        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
         assert_eq!(app.menu_entry, MenuEntry::Scale);
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(app.menu_entry, MenuEntry::Position);
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
         assert_eq!(app.menu_entry, MenuEntry::Primary);
-        handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
-        assert_eq!(app.menu_entry, MenuEntry::Framerate);
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
         assert_eq!(app.menu_entry, MenuEntry::Left);
         handle_key_press(KeyCode::Char('j'), &mut monitors, &mut app, &mut app_states);
