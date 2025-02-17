@@ -54,7 +54,7 @@ impl App {
             state: start_state,
             previous_state: State::MonitorEdit,
 
-            menu_entry: MenuEntry::Name,
+            menu_entry: MenuEntry::Position,
             extra_entry: 0,
             debug: dbg,
             connected_monitor_id: 0,
@@ -89,17 +89,16 @@ pub enum FocusedWindow {
 
 #[derive(Debug, Copy, Clone, FromPrimitive, PartialEq)]
 pub enum MenuEntry{
-    Name,
-    Resolution,
-    Scale,
     Position,
-    Primary,
+    Resolution,
     Framerate,
+    Scale,
+    Primary,
     Left,
     Down,
     Up,
     Right,
     Resolutions
 }
-const MAXMENU: u8 = 10; // update this when adding to menu
+const MAXMENU: u8 = 9; // update this when adding to menu
 

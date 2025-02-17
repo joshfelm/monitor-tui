@@ -5,7 +5,7 @@ use std::io;
 use std::str::Lines;
 
 use crate::monitor::*;
-use crate::debug::xrandr_debug::XRANDR_OUTPUT;
+use crate::debug::xrandr_debug::*;
 
 // get initial monitor information from xrandr
 pub fn get_monitor_info(debug: bool) -> io::Result<Monitors> {
