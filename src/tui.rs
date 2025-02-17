@@ -220,24 +220,26 @@ fn render_main_ui(f: &mut Frame, app: &App, monitors: &Monitors) {
 
     let info = generate_monitor_info(&monitors, *app);
 
+    // dim monitor info if not currently being modified
+    let info_block_style = if matches!(app.state, State::MenuSelect) {
+        Style::default().fg(Color::LightMagenta)
+    } else if matches!(app.state, State::InfoEdit) {
+        Style::default().fg(Color::LightMagenta).add_modifier(Modifier::DIM)
+    } else {
+        Style::default().fg(Color::LightCyan).add_modifier(Modifier::DIM)
+    };
+
     let info_block = Block::default()
-        .title("Monitor Info")
-        .borders(Borders::ALL)
-        .style(Style::default().fg(
-            if matches!(app.state, State::MenuSelect | State::InfoEdit) {
-                Color::LightMagenta
-            } else if matches!(app.focused_window, FocusedWindow::MonitorInfo) {
-                Color::Yellow
-            } else {
-                Color::White
-            }));
+            .title("Monitor info: ".to_string() + &monitors[app.selected_idx].name)
+            .borders(Borders::ALL)
+            .style(info_block_style);
 
     let info_paragraph = Paragraph::new(info)
         .block(info_block)
         .style(Style::default().fg(Color::White))
         .wrap(ratatui::widgets::Wrap { trim: true });
 
-    if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) {
+    if matches!(app.menu_entry, MenuEntry::Framerate | MenuEntry::Resolution) && matches!(app.state, State::MenuSelect | State::InfoEdit) {
         let bottom_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(
@@ -250,15 +252,18 @@ fn render_main_ui(f: &mut Frame, app: &App, monitors: &Monitors) {
         let extra_info = generate_extra_info(&monitors, *app);
         let title = if matches!(app.menu_entry, MenuEntry::Framerate) {"Framerate"} else {"Resolution"};
 
+        // dim extra info if not currently being modified
+        let extra_block_style = if matches!(app.state, State::InfoEdit) {
+            Style::default().fg(Color::LightMagenta)
+        } else {
+            Style::default().fg(Color::LightCyan).add_modifier(Modifier::DIM)
+        };
+
+
         let extra_block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .style(Style::default().fg(
-                if matches!(app.state, State::InfoEdit) {
-                    Color::LightMagenta
-                } else {
-                    Color::White
-                }));
+            .style(extra_block_style);
 
         let extra_paragraph = Paragraph::new(extra_info)
             .block(extra_block)
@@ -450,7 +455,7 @@ fn handle_monitor_edit(app: &mut App, monitors: &mut Monitors, direction: Dir) {
         } else {
             // reset menu entries when changing monitors
             app.extra_entry = 0;
-            app.menu_entry = MenuEntry::Name;
+            app.menu_entry = MenuEntry::Position;
         }
     }
 }
@@ -696,21 +701,20 @@ fn generate_extra_info(
                     .iter()
                     .enumerate()
                     .map(|(i, fr)| {
+                        let mut framerate_style = Style::default();
+                        if app.extra_entry == i {
+                            if matches!(app.state, State::InfoEdit) {
+                                framerate_style.fg = Some(Color::Yellow);
+                                framerate_style = framerate_style.add_modifier(Modifier::BOLD);
+                            }
+                        }
+                        if monitors[app.selected_idx].framerate == *fr {
+                            framerate_style = framerate_style.add_modifier(Modifier::UNDERLINED);
+                        }
                         Line::from(vec![
                             Span::styled(
                                 format!("Option {}: {}hz", i, fr),
-                                if app.extra_entry == i {
-                                    Style::default()
-                                        .add_modifier(Modifier::BOLD)
-                                        .fg(if matches!(app.state, State::InfoEdit) {
-                                            Color::Yellow
-                                        } else {
-                                                Color::White
-                                            }
-                                        )
-                                } else {
-                                    Style::default()
-                                }
+                                framerate_style,
                             )
                         ])
                     })
@@ -725,21 +729,19 @@ fn generate_extra_info(
                     .iter()
                     .enumerate()
                     .map(|(i, res)| {
+                        let mut resolution_style = Style::default().add_modifier(Modifier::BOLD);
+                        if app.extra_entry == i {
+                            if matches!(app.state, State::InfoEdit) {
+                                resolution_style.fg = Some(Color::Yellow);
+                            }
+                        }
+                        if monitors[app.selected_idx].resolution == (res.0, res.1) {
+                            resolution_style = resolution_style.add_modifier(Modifier::UNDERLINED);
+                        }
                         Line::from(vec![
                             Span::styled(
                                 format!("Option {}: {}x{}", i, res.0, res.1),
-                                if app.extra_entry == i {
-                                    Style::default()
-                                        .add_modifier(Modifier::BOLD)
-                                        .fg(if matches!(app.state, State::InfoEdit) {
-                                            Color::Yellow
-                                        } else {
-                                                Color::White
-                                            }
-                                        )
-                                } else {
-                                    Style::default()
-                                }
+                                resolution_style,
                             )
                         ])
                     })
@@ -775,57 +777,74 @@ fn generate_monitor_info(
         }
     }
 
-    fn format_monitor_info(label: &str, value: String, style: Style) -> Line {
-        Line::from(vec![Span::styled(format!("{label}: {value}"), style)])
+    // underline value if it can be modified from this menu
+    fn format_monitor_info(label: &str, value: String, style: Style, indicate_modifiable: bool) -> Line {
+        if indicate_modifiable {
+            Line::from(vec![Span::styled(format!("{label}: "), style), Span::styled(format!("{value}"), style.add_modifier(Modifier::UNDERLINED))])
+        } else {
+            Line::from(vec![Span::styled(format!("{label}: {value}"), style)])
+        }
     }
 
     if let Some(monitor) = monitors.get(app.selected_idx) {
         vec![
-            format_monitor_info("Name", monitor.name.clone(), get_style(app, MenuEntry::Name)),
-            format_monitor_info(
-                "Resolution",
-                format!("{}x{}", monitor.resolution.0, monitor.resolution.1),
-                get_style(app, MenuEntry::Resolution),
-            ),
-            format_monitor_info(
-                "Scale",
-                format!("{:.2}", monitor.resolution.0 as f32 / monitor.displayed_resolution.0 as f32),
-                get_style(app, MenuEntry::Scale),
-            ),
             format_monitor_info(
                 "Position",
                 format!("({}, {})", monitor.position.0, monitor.position.1),
                 get_style(app, MenuEntry::Position),
+                false,
             ),
             format_monitor_info(
-                "Primary",
-                if monitor.is_primary { "Yes".to_string() } else { "No".to_string() },
-                get_style(app, MenuEntry::Primary),
+                "Resolution",
+                format!("{}x{}", monitor.resolution.0, monitor.resolution.1),
+                get_style(app, MenuEntry::Resolution),
+                matches!(app.menu_entry, MenuEntry::Resolution),
             ),
             format_monitor_info(
                 "Framerate",
                 format!("{}hz", monitor.framerate),
                 get_style(app, MenuEntry::Framerate),
+                matches!(app.menu_entry, MenuEntry::Framerate),
+            ),
+            format_monitor_info(
+                "Scale",
+                if matches!(app.menu_entry, MenuEntry::Scale) && matches!(app.state, State::MenuSelect) {
+                    format!("< {:.2} >", monitor.resolution.0 as f32 / monitor.displayed_resolution.0 as f32)
+                } else {
+                    format!("{:.2}", monitor.resolution.0 as f32 / monitor.displayed_resolution.0 as f32)
+                },
+                get_style(app, MenuEntry::Scale),
+                matches!(app.menu_entry, MenuEntry::Scale),
+            ),
+            format_monitor_info(
+                "Primary",
+                if monitor.is_primary { "Yes".to_string() } else { "No".to_string() },
+                get_style(app, MenuEntry::Primary),
+                false,
             ),
             format_monitor_info(
                 "Left",
                 monitor.left.map_or("None".to_string(), |idx| monitors[idx].name.clone()),
                 get_style(app, MenuEntry::Left),
+                false,
             ),
             format_monitor_info(
                 "Down",
                 monitor.down.map_or("None".to_string(), |idx| monitors[idx].name.clone()),
                 get_style(app, MenuEntry::Down),
+                false,
             ),
             format_monitor_info(
                 "Up",
                 monitor.up.map_or("None".to_string(), |idx| monitors[idx].name.clone()),
                 get_style(app, MenuEntry::Up),
+                false,
             ),
             format_monitor_info(
                 "Right",
                 monitor.right.map_or("None".to_string(), |idx| monitors[idx].name.clone()),
                 get_style(app, MenuEntry::Right),
+                false,
             ),
             format_monitor_info(
                 "Resolutions",
@@ -838,6 +857,7 @@ fn generate_monitor_info(
                         .len()
                 ),
                 get_style(app, MenuEntry::Resolutions),
+                false,
             ),
         ]
     } else {
