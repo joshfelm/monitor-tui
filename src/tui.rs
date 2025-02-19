@@ -601,7 +601,7 @@ fn convert_monitors_to_args(monitors: &Monitors, debug: bool) -> Vec<String> {
         args.push("--pos".to_string());
         args.push(format!("{}x{}", element.position.0, element.position.1));
         args.push("--scale".to_string());
-        args.push(format!("{:.2}", element.scale));
+        args.push(format!("{:.2}", 1.0/element.scale));
     };
 
     return args;
